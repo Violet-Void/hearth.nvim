@@ -19,3 +19,6 @@ sfxr = { git = "https://github.com/bzar/sfxr-rs", branch = "master" }
 lto = true
 opt-level = 3
 codegen-units = 1
+
+[patch.crates-io]
+rodio = { path = "crates/rodio" }
