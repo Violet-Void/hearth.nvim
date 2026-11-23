@@ -32,6 +32,11 @@ local defaults = {
 			from_env = true,
 		},
 	},
+	-- Per-event random variation and cursor-direction pitch (see hearth.variation)
+	variation = {
+		profiles = {},
+		cursor_cents = { up = 60, down = -60, left = -25, right = 25 },
+	},
 	debug = false,
 }
 
