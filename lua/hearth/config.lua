@@ -37,6 +37,8 @@ local defaults = {
 		profiles = {},
 		cursor_cents = { up = 60, down = -60, left = -25, right = 25 },
 	},
+	-- Procedural ambience (fire, wind, water); see hearth.ambience
+	ambience = {},
 	debug = false,
 }
 
@@ -133,6 +135,7 @@ function M.setup(options)
 
 	local Api = require("hearth.api")
 	Api.setup()
+	require("hearth.ambience").setup()
 	setmetatable(M, Api)
 
 	if M.is_enabled then

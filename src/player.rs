@@ -56,6 +56,19 @@ impl Player {
         Ok(())
     }
 
+    /// Handle to the shared output stream, for independent sinks (ambience layers).
+    pub fn output_handle(&self) -> Result<OutputStreamHandle, PlayError> {
+        self.ensure_audio_initialized()?;
+        let context = self
+            .audio_context
+            .lock()
+            .map_err(|e| PlayError::Playback(format!("Failed to lock audio context: {}", e)))?;
+        context
+            .as_ref()
+            .map(|(_, handle, _)| handle.clone())
+            .ok_or_else(|| PlayError::Device("Audio output not initialised".to_string()))
+    }
+
     pub fn play(&self, params: SoundParams) -> Result<(), PlayError> {
         self.ensure_audio_initialized()?;
         

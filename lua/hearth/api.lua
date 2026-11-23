@@ -123,6 +123,7 @@ function M.disable()
 		Config.is_enabled = false
 		Utils.clear_autocmds()
 		Utils.stop()
+		require("hearth.ambience").stop()
 	end)
 	return handle_error(ok, err)
 end

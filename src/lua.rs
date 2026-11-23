@@ -1,3 +1,4 @@
+use crate::ambience::{clamp_volume, Ambience, Layer};
 use crate::player::Player;
 use crate::sound::SoundParams;
 use mlua::prelude::*;
@@ -15,7 +16,8 @@ pub fn create_lua_module(lua: &Lua) -> LuaResult<LuaTable> {
     register_append(lua, &exports, player.clone())?;
     register_play_and_wait(lua, &exports, player.clone())?;
     register_play_preset(lua, &exports, player.clone())?;
-    register_stop(lua, &exports, player)?;
+    register_stop(lua, &exports, player.clone())?;
+    register_ambience(lua, &exports, player)?;
 
     Ok(exports)
 }
@@ -87,6 +89,63 @@ fn register_stop(lua: &Lua, exports: &LuaTable, player: Arc<Player>) -> LuaResul
             player
                 .stop()
                 .map_err(|e| mlua::Error::external(e.to_string()))
+        })?,
+    )
+}
+
+const DEFAULT_AMBIENCE_VOLUME: f32 = 0.25;
+
+fn parse_layer(name: &str) -> LuaResult<Layer> {
+    Layer::parse(name).ok_or_else(|| {
+        mlua::Error::external(format!(
+            "Unknown ambience layer: {name} (expected fire, wind or water)"
+        ))
+    })
+}
+
+fn register_ambience(lua: &Lua, exports: &LuaTable, player: Arc<Player>) -> LuaResult<()> {
+    let ambience = Arc::new(Ambience::new());
+
+    let engine = ambience.clone();
+    exports.set(
+        "ambience_start",
+        lua.create_function(move |_, (layer, volume): (String, Option<f32>)| {
+            let layer = parse_layer(&layer)?;
+            let handle = player
+                .output_handle()
+                .map_err(|e| mlua::Error::external(e.to_string()))?;
+            engine
+                .start(&handle, layer, volume.unwrap_or(DEFAULT_AMBIENCE_VOLUME))
+                .map_err(mlua::Error::external)
+        })?,
+    )?;
+
+    let engine = ambience.clone();
+    exports.set(
+        "ambience_stop",
+        lua.create_function(move |_, layer: Option<String>| {
+            let layer = layer.as_deref().map(parse_layer).transpose()?;
+            Ok(engine.stop(layer).len())
+        })?,
+    )?;
+
+    let engine = ambience.clone();
+    exports.set(
+        "ambience_set_volume",
+        lua.create_function(move |_, (layer, volume): (Option<String>, f32)| {
+            let layer = layer.as_deref().map(parse_layer).transpose()?;
+            Ok(engine.set_volume(layer, clamp_volume(volume)))
+        })?,
+    )?;
+
+    exports.set(
+        "ambience_status",
+        lua.create_function(move |lua, ()| {
+            let table = lua.create_table()?;
+            for (layer, volume) in ambience.status() {
+                table.set(layer.name(), volume)?;
+            }
+            Ok(table)
         })?,
     )
 }

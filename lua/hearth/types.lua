@@ -64,4 +64,5 @@
 ---@field master_volume? number Master volume for all sounds (0.0-1.0, default: 1.0)
 ---@field binary Hearth.BinaryConfig Binary management configuration
 ---@field variation? { profiles?: table<string, Hearth.VariationProfile>, cursor_cents?: table<string, number> } Variation profiles and cursor pitch offsets
+---@field ambience? Hearth.AmbienceConfig Procedural ambience options
 ---@field debug boolean Whether to print the debug message

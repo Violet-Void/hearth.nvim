@@ -56,7 +56,7 @@ local function try_load_library(path)
 		return nil, string.format("File not readable: %s", path)
 	end
 
-	local symbol = "luaopen_libplayerone"
+	local symbol = "luaopen_libhearth"
 
 	-- Attempt to load the library
 	local ok, result = pcall(function()
