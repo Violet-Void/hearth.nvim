@@ -5,7 +5,7 @@
 ---| 3 # Noise wave
 ---| 4 # Triangle wave
 
----@class PlayerOne.SoundParams
+---@class Hearth.SoundParams
 ---@field wave_type? WaveType Wave type (default: 0 square)
 ---@field base_freq? number Base frequency in Hz (default: 440)
 ---@field freq_limit? number Minimum frequency during slides in Hz
@@ -35,32 +35,32 @@
 ---| "play" # Play immediately, interrupting current sound
 ---| "append" # Queue sound to play after current sounds
 ---| "play_and_wait" # Play and wait for completion
----| fun(sound: PlayerOne.SoundParams): any # Custom callback function
+---| fun(sound: Hearth.SoundParams): any # Custom callback function
 
----@class PlayerOne.Sound
+---@class Hearth.Sound
 ---@field event string Neovim event name that triggers the sound
----@field sound PlayerOne.SoundParams|PlayerOne.SoundParams[] Single sound or sequence of sounds to play
+---@field sound Hearth.SoundParams|Hearth.SoundParams[] Single sound or sequence of sounds to play
 ---@field callback? PlayCallback How to play the sound (default: "play")
 
----@class PlayerOne.Theme PlayerOne.Sound[] Array of sound configurations
+---@class Hearth.Theme Hearth.Sound[] Array of sound configurations
 
----@class PlayerOne.BinaryConfig
+---@class Hearth.BinaryConfig
 ---@field auto_update boolean Automatically download updates
 ---@field cache_timeout number Version cache timeout in seconds
 ---@field download_timeout number Download timeout in seconds
 ---@field verify_checksum boolean Verify binary checksums
 ---@field use_development boolean Use development build if available
 ---@field github_api_token string|nil GitHub API token for higher rate limits
----@field proxy PlayerOne.ProxyConfig Proxy configuration
+---@field proxy Hearth.ProxyConfig Proxy configuration
 
----@class PlayerOne.ProxyConfig
+---@class Hearth.ProxyConfig
 ---@field url string|nil Proxy URL
 ---@field from_env boolean Use system proxy settings
 
----@class PlayerOne.Config
+---@class Hearth.Config
 ---@field is_enabled boolean Whether the plugin is enabled (default: true)
----@field theme string|PlayerOne.Theme Theme name or custom sounds table (default: "chiptune")
+---@field theme string|Hearth.Theme Theme name or custom sounds table (default: "chiptune")
 ---@field min_interval number Minimum interval between sounds in seconds (default: 0.05)
 ---@field master_volume? number Master volume for all sounds (0.0-1.0, default: 1.0)
----@field binary PlayerOne.BinaryConfig Binary management configuration
+---@field binary Hearth.BinaryConfig Binary management configuration
 ---@field debug boolean Whether to print the debug message

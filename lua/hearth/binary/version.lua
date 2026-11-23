@@ -1,9 +1,9 @@
-local errors = require("player-one.binary.errors")
-local paths = require("player-one.binary.paths")
+local errors = require("hearth.binary.errors")
+local paths = require("hearth.binary.paths")
 
 local M = {}
 
----@class PlayerOne.VersionInfo
+---@class Hearth.VersionInfo
 ---@field current string|nil Currently installed version
 ---@field latest string|nil Latest available version
 ---@field dev boolean Whether a development build exists
@@ -80,7 +80,7 @@ end
 
 ---@return string|nil version The latest release version from GitHub or nil if not found
 function M.get_latest_version()
-	local cache_file = vim.fn.stdpath("cache") .. "/player-one-version"
+	local cache_file = vim.fn.stdpath("cache") .. "/hearth-version"
 	local current_time = os.time()
 
 	if vim.fn.filereadable(cache_file) == 1 then
@@ -96,7 +96,7 @@ function M.get_latest_version()
 			"curl",
 			"--silent",
 			"--fail",
-			"https://api.github.com/repos/jackplus-xyz/player-one.nvim/releases/latest",
+			"https://api.github.com/repos/Violet-Void/hearth.nvim/releases/latest",
 		})
 
 		if ok then
@@ -122,7 +122,7 @@ function M.has_local_build()
 end
 
 ---Get complete version information
----@return PlayerOne.VersionInfo
+---@return Hearth.VersionInfo
 function M.get_info()
 	local ok, info = pcall(function()
 		return {
@@ -142,7 +142,7 @@ function M.get_info()
 end
 
 ---Check if binary needs updating
----@param info PlayerOne.VersionInfo Version information
+---@param info Hearth.VersionInfo Version information
 ---@return boolean needs_update
 function M.needs_update(info)
 	-- Development build takes precedence

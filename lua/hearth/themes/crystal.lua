@@ -1,11 +1,11 @@
 --- @brief Crystal-style sound theme with pure sine waves and ethereal tones
 
-local Utils = require("player-one.utils")
-local Config = require("player-one.config")
+local Utils = require("hearth.utils")
+local Config = require("hearth.config")
 
 local M = {}
 
----@type PlayerOne.Theme
+---@type Hearth.Theme
 return {
 	{
 		event = "VimEnter",

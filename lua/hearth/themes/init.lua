@@ -1,5 +1,5 @@
-local Config = require("player-one.config")
-local Utils = require("player-one.utils")
+local Config = require("hearth.config")
+local Utils = require("hearth.utils")
 
 local M = {}
 
@@ -19,7 +19,7 @@ function M.setup()
 	end
 
 	if type(theme_to_load) ~= "table" and type(theme_to_load) ~= "string" then
-		vim.notify("PlayerOne: Theme to load must be a table or string, got " .. type(theme_to_load), vim.log.levels.ERROR)
+		vim.notify("Hearth: Theme to load must be a table or string, got " .. type(theme_to_load), vim.log.levels.ERROR)
 		return
 	end
 

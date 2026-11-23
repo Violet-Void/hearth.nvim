@@ -1,5 +1,5 @@
-local Utils = require("player-one.utils")
-local Config = require("player-one.config")
+local Utils = require("hearth.utils")
+local Config = require("hearth.config")
 local assert = require("luassert")
 
 describe("Utils", function()
@@ -276,8 +276,8 @@ describe("Utils", function()
     end)
 
     describe("master_volume effect", function()
-        local Config = require("player-one.config")
-        local Lib = require("player-one.binary") -- This is the actual binary functions module
+        local Config = require("hearth.config")
+        local Lib = require("hearth.binary") -- This is the actual binary functions module
         local captured_params_from_rust_call
 
         local original_master_volume

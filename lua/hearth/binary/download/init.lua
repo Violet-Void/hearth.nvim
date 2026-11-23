@@ -1,8 +1,8 @@
-local system = require("player-one.binary.system")
-local version = require("player-one.binary.version")
-local files = require("player-one.binary.download.files")
-local paths = require("player-one.binary.paths")
-local errors = require("player-one.binary.errors")
+local system = require("hearth.binary.system")
+local version = require("hearth.binary.version")
+local files = require("hearth.binary.download.files")
+local paths = require("hearth.binary.paths")
+local errors = require("hearth.binary.errors")
 
 -- FIXME: Binary error on first installation on Linux (Fedora) #12
 local M = {}
@@ -30,7 +30,7 @@ function M.get_download_urls(ver)
 		error(errors.format_error("unsupported_system", "Could not determine system triple"))
 	end
 
-	local base_url = string.format("https://github.com/jackplus-xyz/player-one.nvim/releases/download/%s", ver)
+	local base_url = string.format("https://github.com/Violet-Void/hearth.nvim/releases/download/%s", ver)
 
 	return {
 		binary = string.format("%s/%s%s", base_url, triple, system.get_lib_extension()),
@@ -66,7 +66,7 @@ end
 ---Safely download and install binary
 ---@param ver string Version to download
 function M.ensure_binary(ver)
-	local config = require("player-one.config").options
+	local config = require("hearth.config").options
 
 	if not config.binary.auto_update then
 		-- Skip version checks, only download if binary doesn't exist
@@ -100,7 +100,7 @@ function M.ensure_binary(ver)
 	end
 	urls = err
 
-	vim.notify(string.format("PlayerOne: Downloading %s binary...\nFrom: %s", ver, urls.binary), vim.log.levels.INFO)
+	vim.notify(string.format("Hearth: Downloading %s binary...\nFrom: %s", ver, urls.binary), vim.log.levels.INFO)
 
 	-- Download and install with proper cleanup
 	ok, err = pcall(function()
@@ -136,7 +136,7 @@ function M.ensure_binary(ver)
 		error(errors.format_error("download_failed", err))
 	end
 
-	vim.notify(string.format("PlayerOne: Binary %s downloaded and installed successfully", ver), vim.log.levels.INFO)
+	vim.notify(string.format("Hearth: Binary %s downloaded and installed successfully", ver), vim.log.levels.INFO)
 end
 
 ---Clear downloaded binary cache
@@ -144,7 +144,7 @@ end
 ---@return boolean success True if cache was cleared successfully
 ---@return string? error Error message if clearing failed
 function M.clear_cache(force)
-	vim.notify("PlayerOne: Clearing cache", vim.log.levels.INFO)
+	vim.notify("Hearth: Clearing cache", vim.log.levels.INFO)
 	local binary_path = paths.get_binary_path()
 	local temp_path = paths.get_temp_path()
 	local checksum_path = paths.get_checksum_path()
@@ -188,7 +188,7 @@ function M.clear_cache(force)
 		return false, table.concat(cleanup_errors, "\n")
 	end
 
-	vim.notify("PlayerOne: Cache cleared successfully", vim.log.levels.INFO)
+	vim.notify("Hearth: Cache cleared successfully", vim.log.levels.INFO)
 	return true
 end
 
@@ -218,7 +218,7 @@ function M.update_binary(ver, clear_cache)
 	if clear_cache then
 		local ok, err = M.clear_cache(true)
 		if not ok then
-			vim.notify("PlayerOne: Cache clearing had issues: " .. err, vim.log.levels.WARN)
+			vim.notify("Hearth: Cache clearing had issues: " .. err, vim.log.levels.WARN)
 		end
 	end
 

@@ -1,11 +1,11 @@
 -- Binary compilation and loading functionality adapted from:
 -- https://github.com/Saghen/blink.cmp/tree/main/lua/blink/cmp/fuzzy
 
-local Download = require("player-one.binary.download")
-local Errors = require("player-one.binary.errors")
-local Config = require("player-one.config")
-local System = require("player-one.binary.system")
-local Version = require("player-one.binary.version")
+local Download = require("hearth.binary.download")
+local Errors = require("hearth.binary.errors")
+local Config = require("hearth.config")
+local System = require("hearth.binary.system")
+local Version = require("hearth.binary.version")
 
 local M = {}
 
@@ -28,7 +28,7 @@ local function is_cache_valid()
 end
 
 ---Get version info with caching
----@return PlayerOne.VersionInfo
+---@return Hearth.VersionInfo
 ---@throws string When version info cannot be retrieved
 local function get_cached_version_info()
 	if not is_cache_valid() then
@@ -96,7 +96,7 @@ function M.init()
 	if Config.debug then
 		vim.notify(
 			string.format(
-				"PlayerOne: Initializing binary system\n"
+				"Hearth: Initializing binary system\n"
 					.. "  - Development build: %s\n"
 					.. "  - Current version: %s\n"
 					.. "  - Latest version: %s\n"
@@ -134,7 +134,7 @@ function M.load_binary()
 	local info = get_cached_version_info()
 
 	if not info.current and info.latest then
-		vim.notify("PlayerOne: No binary installed. Attempting to download...", vim.log.levels.INFO)
+		vim.notify("Hearth: No binary installed. Attempting to download...", vim.log.levels.INFO)
 		local ok, err = pcall(Download.ensure_binary, info.latest)
 		if not ok then
 			error(Errors.format_error("binary_load_failed", "No binary installed and download failed: " .. err))
@@ -149,11 +149,11 @@ function M.load_binary()
 		local dev_path = Version.get_development_path()
 		local lib, err = try_load_library(dev_path)
 		if lib then
-			vim.notify("PlayerOne: Using development build", vim.log.levels.INFO)
+			vim.notify("Hearth: Using development build", vim.log.levels.INFO)
 			loaded_lib = lib
 			return lib
 		else
-			vim.notify("PlayerOne: Failed to load development build: " .. err, vim.log.levels.WARN)
+			vim.notify("Hearth: Failed to load development build: " .. err, vim.log.levels.WARN)
 		end
 	end
 

@@ -1,11 +1,11 @@
 --- @brief Modern synthesizer-style sound theme with rich harmonics and filtering
 
-local Utils = require("player-one.utils")
-local Config = require("player-one.config")
+local Utils = require("hearth.utils")
+local Config = require("hearth.config")
 
 local M = {}
 
----@type PlayerOne.Theme
+---@type Hearth.Theme
 return {
 	{
 		event = "VimEnter",
@@ -81,7 +81,7 @@ return {
 			end
 		end,
 	},
-	--- @type PlayerOne.Sound
+	--- @type Hearth.Sound
 	{
 		event = "VimLeavePre",
 		sound = {
@@ -108,7 +108,7 @@ return {
 			Utils.play_and_wait(sound)
 		end,
 	},
-	--- @type PlayerOne.Sound
+	--- @type Hearth.Sound
 	{
 		event = "BufWritePost",
 		sound = {
@@ -133,7 +133,7 @@ return {
 		},
 		callback = "append",
 	},
-	--- @type PlayerOne.Sound
+	--- @type Hearth.Sound
 	{
 		event = "TextChangedI",
 		sound = {
@@ -146,7 +146,7 @@ return {
 			lpf_freq = 2000,
 		},
 	},
-	--- @type PlayerOne.Sound
+	--- @type Hearth.Sound
 	{
 		event = "TextYankPost",
 		sound = {
@@ -171,7 +171,7 @@ return {
 		},
 		callback = "append",
 	},
-	--- @type PlayerOne.Sound
+	--- @type Hearth.Sound
 	{
 		event = "CmdlineEnter",
 		sound = {
@@ -196,7 +196,7 @@ return {
 		},
 		callback = "append",
 	},
-	--- @type PlayerOne.Sound
+	--- @type Hearth.Sound
 	{
 		event = "CmdlineChanged",
 		sound = {

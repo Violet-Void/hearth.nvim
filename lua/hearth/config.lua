@@ -1,16 +1,16 @@
---- Configuration and state management module for PlayerOne
+--- Configuration and state management module for Hearth
 --- Maintains global configuration and plugin state
----@module 'player-one.config'
+---@module 'hearth.config'
 ---@usage [[
 ---# Access plugin configuration and state
----local Config = require("player-one.config")
+---local Config = require("hearth.config")
 ---print(Config.is_enabled) -- Check if plugin is enabled
 ---print(Config.curr_theme) -- Get current theme
 ---]]
 
 local M = {}
 
----@type PlayerOne.Config
+---@type Hearth.Config
 local defaults = {
 	is_enabled = true,
 	min_interval = 0.05,
@@ -73,21 +73,21 @@ M.group = nil
 ---@type string|table Current theme name or custom theme table
 M.curr_theme = nil
 
---- Setup PlayerOne with the provided configuration
----@param options? PlayerOne.Config Configuration table to override defaults
+--- Setup Hearth with the provided configuration
+---@param options? Hearth.Config Configuration table to override defaults
 ---@usage [[
 --- # Basic setup with defaults
---- require('player-one').setup()
+--- require('hearth').setup()
 ---
 --- # Custom configuration
---- require('player-one').setup({
+--- require('hearth').setup({
 ---   is_enabled = true,
 ---   theme = "crystal",
 ---   min_interval = 0.1
 --- })
 ---
 --- # Custom theme
---- require('player-one').setup({
+--- require('hearth').setup({
 ---   theme = {
 ---     {
 ---       event = "TextChangedI",
@@ -124,9 +124,9 @@ function M.setup(options)
 
 	-- Create autocmd group for plugin events
 	---@type number Autocmd group ID
-	M.group = vim.api.nvim_create_augroup("PlayerOne", { clear = true })
+	M.group = vim.api.nvim_create_augroup("Hearth", { clear = true })
 
-	local Api = require("player-one.api")
+	local Api = require("hearth.api")
 	Api.setup()
 	setmetatable(M, Api)
 
@@ -138,7 +138,7 @@ end
 ---Reload the binary
 ---@return boolean success Whether reload succeeded
 function M.reload_binary()
-	local binary = require("player-one.binary")
+	local binary = require("hearth.binary")
 	binary.clear_cache()
 	return binary.load_binary() ~= nil
 end

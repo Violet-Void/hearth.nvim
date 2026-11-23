@@ -1,11 +1,11 @@
 --- @brief Chiptune-style sound theme inspired by 8-bit game consoles
 
-local Utils = require("player-one.utils")
-local Config = require("player-one.config")
+local Utils = require("hearth.utils")
+local Config = require("hearth.config")
 
 local M = {}
 
----@type PlayerOne.Theme
+---@type Hearth.Theme
 return {
 	{
 		event = "VimEnter",

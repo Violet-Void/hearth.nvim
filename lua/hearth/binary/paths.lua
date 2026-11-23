@@ -10,9 +10,9 @@ function M.get_release_dir()
 end
 
 function M.get_binary_name()
-	local prefix = require("player-one.binary.system").get_lib_prefix()
-	local ext = require("player-one.binary.system").get_lib_extension()
-	return prefix .. "player_one" .. ext
+	local prefix = require("hearth.binary.system").get_lib_prefix()
+	local ext = require("hearth.binary.system").get_lib_extension()
+	return prefix .. "hearth" .. ext
 end
 
 function M.get_binary_path()

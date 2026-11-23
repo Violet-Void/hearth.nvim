@@ -1,5 +1,5 @@
-local system = require("player-one.binary.system")
-local errors = require("player-one.binary.errors")
+local system = require("hearth.binary.system")
+local errors = require("hearth.binary.errors")
 
 local M = {}
 

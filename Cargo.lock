@@ -268,6 +268,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
 
 [[package]]
+name = "hearth"
+version = "0.1.2"
+dependencies = [
+ "mlua",
+ "rodio",
+ "serde",
+ "serde_json",
+ "sfxr",
+ "thiserror 2.0.11",
+]
+
+[[package]]
 name = "hound"
 version = "3.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -592,18 +604,6 @@ name = "pkg-config"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "953ec861398dccce10c670dfeaf3ec4911ca479e9c02154b3a215178c5f566f2"
-
-[[package]]
-name = "player_one"
-version = "0.1.2"
-dependencies = [
- "mlua",
- "rodio",
- "serde",
- "serde_json",
- "sfxr",
- "thiserror 2.0.11",
-]
 
 [[package]]
 name = "ppv-lite86"

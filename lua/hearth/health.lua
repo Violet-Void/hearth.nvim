@@ -21,7 +21,7 @@ local AUDIO_COMMANDS = {
 }
 
 function M.check()
-	vim.health.start("player-one.nvim")
+	vim.health.start("hearth.nvim")
 
 	-- Check OS compatibility
 	local os_name = vim.uv.os_uname().sysname
@@ -77,7 +77,7 @@ function M.check()
 	end
 end
 
---- Validates and checks the status of the PlayerOne binary installation
+--- Validates and checks the status of the Hearth binary installation
 --- Verifies that:
 --- - The release directory exists and is accessible
 --- - The binary exists and has correct permissions
@@ -123,7 +123,7 @@ function M.check_binary_status(opts)
 	if vim.fn.filereadable(opts.path) == 0 then
 		vim.health.error(string.format("Binary not found: %s", opts.path), {
 			"The plugin binary is missing",
-			"Try running :PlayerOneUpdate to install",
+			"Try running :HearthUpdate to install",
 		})
 		return nil
 	else

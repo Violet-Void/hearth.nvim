@@ -1,7 +1,7 @@
 local M = {}
 
 local ERROR_MESSAGES = {
-	binary_load_failed = "Failed to load player-one binary",
+	binary_load_failed = "Failed to load hearth binary",
 	binary_system_init_failed = "Failed to initialize binary system",
 	binary_cache_invalid = "Binary cache is invalid",
 	version_check_failed = "Failed to check version information",

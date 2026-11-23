@@ -1,13 +1,13 @@
-local Lib = require("player-one.binary")
-local Config = require("player-one.config")
+local Lib = require("hearth.binary")
+local Config = require("hearth.config")
 
---- Sound utility functions for PlayerOne
+--- Sound utility functions for Hearth
 --- Provides core functionality for sound parameter validation, playback control, and event handling.
 ---
----@module 'player-one.utils'
+---@module 'hearth.utils'
 ---
 ---@usage
---- local Utils = require("player-one.utils")
+--- local Utils = require("hearth.utils")
 ---
 --- -- Basic sound playback
 --- Utils.play({
@@ -34,16 +34,16 @@ local Config = require("player-one.config")
 ---   }
 --- })
 ---
----@see player-one.lib
----@see player-one.state
+---@see hearth.lib
+---@see hearth.state
 local M = {}
 
 ---@type number Time of last sound played (in milliseconds)
 local last_play_time = 0
 
 ---Sanitize and validate sound parameters
----@param params PlayerOne.SoundParams|nil Raw parameters to sanitize
----@return PlayerOne.SoundParams Sanitized parameters
+---@param params Hearth.SoundParams|nil Raw parameters to sanitize
+---@return Hearth.SoundParams Sanitized parameters
 local function sanitize_params(params)
     if not params then
         return {}
@@ -183,7 +183,7 @@ local function sanitize_json_params(json_params)
 end
 
 ---Process and validate sound parameters before playing
----@param params PlayerOne.SoundParams|PlayerOne.SoundParams[]|string Sound parameters to process
+---@param params Hearth.SoundParams|Hearth.SoundParams[]|string Sound parameters to process
 ---@param callback function Function to call with processed parameters
 ---@return any Result from the callback
 local function process_sound_params(params, callback)
@@ -232,7 +232,7 @@ end
 
 ---Create autocommands for sound events
 ---@param autocmd string|string[] Neovim autocommand event(s)
----@param sound PlayerOne.SoundParams|PlayerOne.SoundParams[] Sound(s) to play
+---@param sound Hearth.SoundParams|Hearth.SoundParams[] Sound(s) to play
 ---@param callback? PlayCallback How to play the sound
 function M._create_autocmds(autocmd, sound, callback)
     vim.api.nvim_create_autocmd(autocmd, {
@@ -269,7 +269,7 @@ function M.clear_autocmds()
 end
 
 ---Load a sound theme
----@param theme? string|PlayerOne.Theme Theme name or custom theme table
+---@param theme? string|Hearth.Theme Theme name or custom theme table
 function M.load_theme(theme)
     if theme == "default" or not theme then
         theme = Config.curr_theme
@@ -285,7 +285,7 @@ function M.load_theme(theme)
         if not vim.tbl_contains(themes, theme) then
             error(string.format("Invalid preset '%s'. Available presets: %s", theme, table.concat(themes, ", ")))
         end
-        theme = require("player-one.themes." .. theme)
+        theme = require("hearth.themes." .. theme)
     end
 
     for i, v in ipairs(theme) do
@@ -307,21 +307,21 @@ function M.load_theme(theme)
 end
 
 ---Play a sound immediately
----@param params PlayerOne.SoundParams|PlayerOne.SoundParams[]|string Sound parameters
+---@param params Hearth.SoundParams|Hearth.SoundParams[]|string Sound parameters
 ---@return any Result from sound playback
 function M.play(params)
     return process_sound_params(params, Lib.play)
 end
 
 ---Queue a sound to play after current sounds
----@param params PlayerOne.SoundParams|PlayerOne.SoundParams[]|string Sound parameters
+---@param params Hearth.SoundParams|Hearth.SoundParams[]|string Sound parameters
 ---@return any Result from sound queueing
 function M.append(params)
     return process_sound_params(params, Lib.append)
 end
 
 ---Play a sound and wait for completion
----@param params PlayerOne.SoundParams|PlayerOne.SoundParams[]|string Sound parameters
+---@param params Hearth.SoundParams|Hearth.SoundParams[]|string Sound parameters
 ---@return any Result from play_and_wait playback
 function M.play_and_wait(params)
     return process_sound_params(params, Lib.play_and_wait)
