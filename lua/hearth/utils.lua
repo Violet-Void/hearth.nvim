@@ -34,8 +34,8 @@ local Config = require("hearth.config")
 ---   }
 --- })
 ---
----@see hearth.lib
----@see hearth.state
+---@see hearth.binary
+---@see hearth.config
 local M = {}
 
 ---@type number Time of last sound played (in milliseconds)
@@ -230,6 +230,18 @@ local function process_sound_params(params, callback)
     error(string.format("Invalid sound params type: %s", type(params)))
 end
 
+local function apply_event_variation(autocmd, sound)
+    local variation = require("hearth.variation")
+    if not variation.is_enabled() then
+        return sound
+    end
+    local profile = variation.profile_for_event(autocmd)
+    if not profile then
+        return sound
+    end
+    return variation.vary_sound(sound, profile)
+end
+
 ---Create autocommands for sound events
 ---@param autocmd string|string[] Neovim autocommand event(s)
 ---@param sound Hearth.SoundParams|Hearth.SoundParams[] Sound(s) to play
@@ -243,12 +255,13 @@ function M._create_autocmds(autocmd, sound, callback)
                     if type(callback) == "function" then
                         callback(sound)
                     elseif type(callback) == "string" then
+                        local effective = apply_event_variation(autocmd, sound)
                         if callback == "append" then
-                            M.append(sound)
+                            M.append(effective)
                         elseif callback == "play" then
-                            M.play(sound)
+                            M.play(effective)
                         elseif callback == "play_and_wait" then
-                            M.play_and_wait(sound)
+                            M.play_and_wait(effective)
                         else
                             error("Invalid callback string: " .. callback)
                         end
@@ -256,7 +269,7 @@ function M._create_autocmds(autocmd, sound, callback)
                         error("callback must be a function or a string")
                     end
                 else
-                    M.play(sound)
+                    M.play(apply_event_variation(autocmd, sound))
                 end
             end
         end,

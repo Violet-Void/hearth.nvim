@@ -2,7 +2,7 @@ local M = {}
 
 function M.get_plugin_root()
 	local str = debug.getinfo(1).source
-	return str:sub(2):gsub("/lua/player%-one/binary/paths.lua$", "")
+	return str:sub(2):gsub("[/\\]lua[/\\]hearth[/\\]binary[/\\]paths%.lua$", "")
 end
 
 function M.get_release_dir()

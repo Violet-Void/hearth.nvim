@@ -34,8 +34,18 @@ local defaults = {
 	},
 	-- Per-event random variation and cursor-direction pitch (see hearth.variation)
 	variation = {
+		enabled = true,
 		profiles = {},
+		cursor_direction = true,
+		-- Directional cursor pitch offsets in cents (~half-semitone vertical,
+		-- ~quarter-semitone horizontal) layered on top of micro-variation.
 		cursor_cents = { up = 60, down = -60, left = -25, right = 25 },
+		event_profiles = {
+			CursorMoved = "frequent",
+			TextChanged = "frequent",
+			TextChangedI = "frequent",
+			ModeChanged = "frequent",
+		},
 	},
 	-- Procedural ambience (fire, wind, water); see hearth.ambience
 	ambience = {},
@@ -136,11 +146,13 @@ function M.setup(options)
 	local Api = require("hearth.api")
 	Api.setup()
 	require("hearth.ambience").setup()
-	setmetatable(M, Api)
+	setmetatable(M, { __index = Api })
 
 	if M.is_enabled then
 		Api.enable()
 	end
+
+	return require("hearth")
 end
 
 ---Reload the binary

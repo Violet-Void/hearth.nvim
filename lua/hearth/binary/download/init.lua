@@ -198,16 +198,17 @@ end
 function M.update_binary(ver, clear_cache)
 	-- Get latest version if not specified
 	if not ver then
-		local latest = version.get_latest_version()
+		local latest = version.get_latest_version(true)
 		if not latest then
 			error(errors.format_error("download_failed", "Could not determine latest version"))
 		end
+		ver = latest
 	end
 
 	-- Ensure version is a valid release tag
 	if ver:match("^%x+$") then
 		-- Try to get latest version instead
-		local latest = version.get_latest_version()
+		local latest = version.get_latest_version(true)
 		if latest then
 			ver = latest
 		else

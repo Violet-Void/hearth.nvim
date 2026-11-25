@@ -54,7 +54,7 @@ return {
 		},
 		callback = function(sound)
 			if Config._is_cursormoved_enabled == true then
-				Utils.append(sound)
+				require("hearth.variation").play_cursor(sound, "frequent", Utils.append)
 			end
 		end,
 	},

@@ -78,37 +78,51 @@ function M.get_current_version()
 	return nil
 end
 
+local function fetch_latest_version(cache_file, current_time)
+	local ok, result = pcall(vim.fn.system, {
+		"curl",
+		"--silent",
+		"--fail",
+		"https://api.github.com/repos/Violet-Void/hearth.nvim/releases/latest",
+	})
+
+	if not ok or vim.v.shell_error ~= 0 or type(result) ~= "string" or result == "" then
+		return nil
+	end
+
+	local dec_ok, release = pcall(vim.json.decode, result)
+	if dec_ok and type(release) == "table" and type(release.tag_name) == "string" and release.tag_name ~= "" then
+		pcall(vim.fn.writefile, { tostring(current_time), release.tag_name }, cache_file)
+		return release.tag_name
+	end
+	return nil
+end
+
+---@param sync? boolean Whether to fetch synchronously when cache is cold/expired
 ---@return string|nil version The latest release version from GitHub or nil if not found
-function M.get_latest_version()
+function M.get_latest_version(sync)
 	local cache_file = vim.fn.stdpath("cache") .. "/hearth-version"
 	local current_time = os.time()
+	local cached_version = nil
 
 	if vim.fn.filereadable(cache_file) == 1 then
 		local cache = vim.fn.readfile(cache_file)
 		local timestamp = tonumber(cache[1])
-		if current_time - timestamp < 86400 then -- 24 hours
-			return cache[2]
+		cached_version = cache[2]
+		if timestamp and cached_version and cached_version ~= "" and current_time - timestamp < 86400 then
+			return cached_version
 		end
 	end
 
-	vim.defer_fn(function()
-		local ok, result = pcall(vim.fn.system, {
-			"curl",
-			"--silent",
-			"--fail",
-			"https://api.github.com/repos/Violet-Void/hearth.nvim/releases/latest",
-		})
+	if sync then
+		return fetch_latest_version(cache_file, current_time) or cached_version
+	end
 
-		if ok then
-			local release = vim.json.decode(result)
-			if release and release.tag_name then
-				vim.fn.writefile({ tostring(current_time), release.tag_name }, cache_file)
-			end
-		end
+	vim.defer_fn(function()
+		fetch_latest_version(cache_file, current_time)
 	end, 1000)
 
-	-- Return cached or nil for now
-	return vim.fn.filereadable(cache_file) == 1 and vim.fn.readfile(cache_file)[2] or nil
+	return cached_version
 end
 
 function M.has_development_build()

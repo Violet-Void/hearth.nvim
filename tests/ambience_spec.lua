@@ -33,11 +33,12 @@ end
 
 describe("ambience", function()
 	local errors
-	local orig_lib, orig_notify
+	local orig_lib, orig_notify, orig_enabled, orig_ambience
 
 	before_each(function()
 		local lib = fake_lib()
 		orig_lib, orig_notify = A._lib, vim.notify
+		orig_enabled, orig_ambience = Config.is_enabled, Config.ambience
 		A._lib = function()
 			return lib
 		end
@@ -47,15 +48,17 @@ describe("ambience", function()
 				errors[#errors + 1] = msg
 			end
 		end
+		Config.is_enabled = true
 		Config.ambience = nil
 		A.setup()
 	end)
 
 	after_each(function()
 		A._lib, vim.notify = orig_lib, orig_notify
-		pcall(vim.keymap.del, "n", "<leader>un")
-		pcall(vim.keymap.del, "n", "<leader>u=")
-		pcall(vim.keymap.del, "n", "<leader>u-")
+		Config.is_enabled, Config.ambience = orig_enabled, orig_ambience
+		Config.ambience = { keymaps = false }
+		A.setup()
+		Config.ambience = orig_ambience
 	end)
 
 	it("starts every layer at weighted master volume", function()
@@ -82,6 +85,23 @@ describe("ambience", function()
 		assert.is_truthy(errors[1]:find("unknown layer 'lava'", 1, true))
 	end)
 
+	it("validates configured layers before starting any", function()
+		Config.ambience = { layers = { "fire", "lava" } }
+		assert.is_false(A.start())
+		assert.are.equal(0, #calls)
+		assert.are.equal(1, #errors)
+		assert.is_truthy(errors[1]:find("unknown layer 'lava'", 1, true))
+	end)
+
+	it("respects Config.is_enabled on start, toggle, and autostart", function()
+		Config.is_enabled = false
+		assert.is_false(A.start())
+		assert.is_false(A.toggle())
+		Config.ambience = { autostart = true }
+		A.setup()
+		assert.are.equal(0, #calls)
+	end)
+
 	it("stops everything with no argument", function()
 		A.start()
 		A.stop()
@@ -100,8 +120,14 @@ describe("ambience", function()
 		A.start()
 		calls = {}
 		assert.is_true(A.set_volume(2))
-		assert.are.same({ "volume", "fire", 1 }, calls[1])
-		assert.are.same({ "volume", "wind", 0.7 }, calls[2])
+		local volumes = {}
+		for _, call in ipairs(calls) do
+			assert.are.equal("volume", call[1])
+			volumes[call[2]] = call[3]
+		end
+		assert.are.equal(1, volumes.fire)
+		assert.are.equal(0.7, volumes.wind)
+		assert.are.equal(0.6, volumes.water)
 		assert.is_true(A.set_volume(-1))
 		assert.are.equal(0, A.status().volume)
 	end)
@@ -157,12 +183,16 @@ describe("ambience", function()
 		assert.are.same({ "fire" }, vim.fn.getcompletion("Ambience start f", "cmdline"))
 	end)
 
-	it("installs default keymaps and allows disabling them", function()
+	it("removes previously installed keymaps when re-configured or disabled", function()
 		assert.is_true(vim.fn.maparg("<leader>un", "n") ~= "")
-		pcall(vim.keymap.del, "n", "<leader>un")
-		Config.ambience = { keymaps = false }
+		Config.ambience = { keymaps = { toggle = "<leader>ux", louder = false, quieter = false } }
 		A.setup()
 		assert.are.equal("", vim.fn.maparg("<leader>un", "n"))
+		assert.is_true(vim.fn.maparg("<leader>ux", "n") ~= "")
+
+		Config.ambience = { keymaps = false }
+		A.setup()
+		assert.are.equal("", vim.fn.maparg("<leader>ux", "n"))
 	end)
 
 	it("autostarts only when configured", function()
@@ -170,5 +200,27 @@ describe("ambience", function()
 		Config.ambience = { autostart = true }
 		A.setup()
 		assert.are.equal(3, #calls)
+	end)
+
+	it("preserves a pre-existing foreign :Ambience command while registering :HearthAmbience", function()
+		pcall(vim.api.nvim_del_user_command, "Ambience")
+		local foreign_called = false
+		vim.api.nvim_create_user_command("Ambience", function()
+			foreign_called = true
+		end, {})
+
+		-- Force non-ownership simulation by reloading module cleanly
+		Config.ambience = { keymaps = false }
+		package.loaded["hearth.ambience"] = nil
+		local fresh = require("hearth.ambience")
+		fresh._lib = A._lib
+		fresh.setup()
+
+		vim.cmd("Ambience")
+		assert.is_true(foreign_called)
+		assert.is_truthy(vim.api.nvim_get_commands({}).HearthAmbience)
+
+		pcall(vim.api.nvim_del_user_command, "Ambience")
+		package.loaded["hearth.ambience"] = A
 	end)
 end)

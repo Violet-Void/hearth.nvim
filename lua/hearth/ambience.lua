@@ -6,6 +6,7 @@
 --- require("hearth.ambience").set_volume(0.3)    -- master volume
 --- require("hearth.ambience").stop()
 --- :Ambience [start|stop|toggle|volume|status] ...
+--- :HearthAmbience [start|stop|toggle|volume|status] ...
 ---]]
 local Config = require("hearth.config")
 
@@ -15,11 +16,11 @@ local M = {}
 M.layers = { "fire", "wind", "water" }
 
 ---@class Hearth.AmbienceConfig
----@field volume number Master volume 0..1 (default 0.25)
----@field layers string[] Layers started by default
----@field weights table<string, number> Per-layer mix relative to master
----@field autostart boolean Start on setup (default false)
----@field keymaps table|false Keymaps: toggle, louder, quieter (false to disable)
+---@field volume? number Master volume 0..1 (default 0.25)
+---@field layers? string[] Layers started by default
+---@field weights? table<string, number> Per-layer mix relative to master
+---@field autostart? boolean Start on setup (default false)
+---@field keymaps? table|false Keymaps: toggle, louder, quieter (false to disable)
 M.defaults = {
 	volume = 0.25,
 	layers = { "fire", "wind", "water" },
@@ -29,6 +30,8 @@ M.defaults = {
 }
 
 local state = { volume = M.defaults.volume }
+local installed_keymaps = {}
+local owns_ambience_cmd = false
 
 ---@return Hearth.AmbienceConfig
 local function opts()
@@ -53,14 +56,15 @@ end
 ---@return string[]|nil layers, string|nil err
 local function normalize(names)
 	if names == nil then
-		return vim.deepcopy(opts().layers)
-	end
-	if type(names) == "string" then
+		names = vim.deepcopy(opts().layers)
+	elseif type(names) == "string" then
 		names = { names }
+	elseif type(names) ~= "table" then
+		return nil, ("invalid layer specification (%s)"):format(type(names))
 	end
 	for _, name in ipairs(names) do
 		if not vim.tbl_contains(M.layers, name) then
-			return nil, ("unknown layer '%s' (expected %s)"):format(name, table.concat(M.layers, ", "))
+			return nil, ("unknown layer '%s' (expected %s)"):format(tostring(name), table.concat(M.layers, ", "))
 		end
 	end
 	return names
@@ -74,6 +78,9 @@ end
 ---@param layers? string|string[]
 ---@return boolean ok
 function M.start(layers)
+	if not Config.is_enabled then
+		return false
+	end
 	local names, err = normalize(layers)
 	if not names then
 		notify(err, vim.log.levels.ERROR)
@@ -135,6 +142,9 @@ function M.status()
 end
 
 function M.toggle()
+	if not Config.is_enabled then
+		return false
+	end
 	if M.status().active then
 		return M.stop()
 	end
@@ -161,8 +171,11 @@ function M.set_volume(value, layer)
 			lib.ambience_set_volume(layer, value)
 		else
 			state.volume = value
-			for running_layer in pairs(running()) do
-				lib.ambience_set_volume(running_layer, layer_volume(running_layer))
+			local active = running()
+			for _, running_layer in ipairs(M.layers) do
+				if active[running_layer] ~= nil then
+					lib.ambience_set_volume(running_layer, layer_volume(running_layer))
+				end
 			end
 		end
 	end)
@@ -228,18 +241,31 @@ local function complete(arglead, cmdline)
 	end, pool)
 end
 
---- Create the :Ambience command, keymaps and optional autostart.
+local function clear_keymaps()
+	for _, lhs in ipairs(installed_keymaps) do
+		pcall(vim.keymap.del, "n", lhs)
+	end
+	installed_keymaps = {}
+end
+
+--- Create the :HearthAmbience (and :Ambience if unowned) command, keymaps and optional autostart.
 function M.setup()
 	local o = opts()
 	state.volume = clamp(o.volume)
 
-	pcall(vim.api.nvim_del_user_command, "Ambience")
-	vim.api.nvim_create_user_command("Ambience", command, {
+	local cmd_spec = {
 		nargs = "*",
 		complete = complete,
 		desc = "Hearth ambience: start|stop|toggle|volume|status",
-	})
+	}
 
+	vim.api.nvim_create_user_command("HearthAmbience", command, cmd_spec)
+	if owns_ambience_cmd or vim.fn.exists(":Ambience") == 0 then
+		vim.api.nvim_create_user_command("Ambience", command, cmd_spec)
+		owns_ambience_cmd = true
+	end
+
+	clear_keymaps()
 	if o.keymaps then
 		local maps = {
 			toggle = { M.toggle, "Toggle ambience" },
@@ -259,11 +285,12 @@ function M.setup()
 		for name, lhs in pairs(o.keymaps) do
 			if maps[name] and lhs then
 				vim.keymap.set("n", lhs, maps[name][1], { desc = maps[name][2], silent = true })
+				installed_keymaps[#installed_keymaps + 1] = lhs
 			end
 		end
 	end
 
-	if o.autostart then
+	if o.autostart and Config.is_enabled then
 		M.start()
 	end
 end

@@ -131,11 +131,13 @@ end
 ---Toggle the plugin enabled state
 function M.toggle()
 	if Config.is_enabled then
-		M.disable()
-		vim.notify("Disabled Hearth", vim.log.levels.INFO)
+		if M.disable() then
+			vim.notify("Disabled Hearth", vim.log.levels.INFO)
+		end
 	else
-		M.enable()
-		vim.notify("Enabled Hearth", vim.log.levels.INFO)
+		if M.enable() then
+			vim.notify("Enabled Hearth", vim.log.levels.INFO)
+		end
 	end
 end
 

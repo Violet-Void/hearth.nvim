@@ -1,4 +1,4 @@
---- fzf-lua integration: open/launch/cancel sounds.
+--- fzf-lua integration: open/launch/select/cancel sounds.
 ---@module 'hearth.fzf'
 local variation = require("hearth.variation")
 local M = {}
@@ -70,6 +70,43 @@ function M.mark_launch()
 	use_launch_sound = true
 end
 
+--- Play a named fzf sound with subtle occasional variation.
+---@param name "open"|"launch"|"select"|"cancel"|"move"
+---@return Hearth.SoundParams|nil
+function M.play(name)
+	local sound = M.sounds[name]
+	if not sound then
+		return nil
+	end
+	return variation.play_varied(sound, "occasional")
+end
+
+--- Wrap an fzf-lua action so selecting it plays `M.sounds.select`.
+---@param fn function
+---@return function
+function M.wrap_action(fn)
+	return function(...)
+		M.play("select")
+		return fn(...)
+	end
+end
+
+local function attach_on_create(winopts)
+	local previous = winopts.on_create
+	if managed_hooks[previous] then
+		return winopts
+	end
+	local function on_create(event)
+		M.on_create(event)
+		if type(previous) == "function" then
+			return previous(event)
+		end
+	end
+	managed_hooks[on_create] = true
+	winopts.on_create = on_create
+	return winopts
+end
+
 function M.on_create(event)
 	local opening = use_launch_sound and M.sounds.launch or M.sounds.open
 	use_launch_sound = false
@@ -81,7 +118,24 @@ function M.on_create(event)
 		return
 	end
 
+	local cancelled = false
+	vim.api.nvim_create_autocmd("TermClose", {
+		buffer = bufnr,
+		once = true,
+		callback = function(args)
+			if cancelled then
+				return
+			end
+			local status = (args.data and args.data.status ~= nil) and args.data.status
+				or (vim.v.event and vim.v.event.status)
+			if status == 0 then
+				variation.play_varied(M.sounds.select, "occasional")
+			end
+		end,
+	})
+
 	vim.keymap.set({ "n", "t" }, "<Esc>", function()
+		cancelled = true
 		variation.play_varied(M.sounds.cancel, "occasional")
 		if type(winid) == "number" and vim.api.nvim_win_is_valid(winid) then
 			vim.api.nvim_win_close(winid, true)
@@ -89,23 +143,30 @@ function M.on_create(event)
 	end, { buffer = bufnr, silent = true, desc = "Cancel FZF with Hearth sound" })
 end
 
---- Install the hook into fzf-lua options (idempotent).
+--- Install the hook into fzf-lua options (idempotent; supports table or callable winopts).
 ---@param opts table fzf-lua setup options
 ---@return table
 function M.setup(opts)
-	opts.winopts = opts.winopts or {}
-	local previous = opts.winopts.on_create
-	if managed_hooks[previous] then
+	opts = opts or {}
+	if type(opts.winopts) == "function" then
+		local previous_fn = opts.winopts
+		if managed_hooks[previous_fn] then
+			return opts
+		end
+		local function winopts_fn(...)
+			local tbl = previous_fn(...) or {}
+			if type(tbl) == "table" then
+				attach_on_create(tbl)
+			end
+			return tbl
+		end
+		managed_hooks[winopts_fn] = true
+		opts.winopts = winopts_fn
 		return opts
 	end
-	local function on_create(event)
-		M.on_create(event)
-		if type(previous) == "function" then
-			return previous(event)
-		end
-	end
-	managed_hooks[on_create] = true
-	opts.winopts.on_create = on_create
+
+	opts.winopts = opts.winopts or {}
+	attach_on_create(opts.winopts)
 	return opts
 end
 

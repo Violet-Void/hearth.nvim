@@ -133,15 +133,27 @@ function M.load_binary()
 
 	local info = get_cached_version_info()
 
-	if not info.current and info.latest then
-		vim.notify("Hearth: No binary installed. Attempting to download...", vim.log.levels.INFO)
-		local ok, err = pcall(Download.ensure_binary, info.latest)
-		if not ok then
-			error(Errors.format_error("binary_load_failed", "No binary installed and download failed: " .. err))
+	if not info.current then
+		if not info.latest then
+			info.latest = Version.get_latest_version(true)
 		end
-		-- Reload version info after download
-		version_info_cache.info = nil
-		info = get_cached_version_info()
+		if info.latest then
+			vim.notify("Hearth: No binary installed. Attempting to download...", vim.log.levels.INFO)
+			local ok, err = pcall(Download.ensure_binary, info.latest)
+			if not ok then
+				error(Errors.format_error("binary_load_failed", "No binary installed and download failed: " .. err))
+			end
+			-- Reload version info after download
+			version_info_cache.info = nil
+			info = get_cached_version_info()
+		elseif not info.dev then
+			error(
+				Errors.format_error(
+					"binary_load_failed",
+					"No local binary found and no GitHub release is available yet. Run `cargo build --release` in the plugin directory."
+				)
+			)
+		end
 	end
 
 	-- Try loading development binary first
