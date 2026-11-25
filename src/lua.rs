@@ -111,11 +111,12 @@ fn register_ambience(lua: &Lua, exports: &LuaTable, player: Arc<Player>) -> LuaR
         "ambience_start",
         lua.create_function(move |_, (layer, volume): (String, Option<f32>)| {
             let layer = parse_layer(&layer)?;
-            let handle = player
-                .output_handle()
-                .map_err(|e| mlua::Error::external(e.to_string()))?;
             engine
-                .start(&handle, layer, volume.unwrap_or(DEFAULT_AMBIENCE_VOLUME))
+                .start(
+                    || player.connect_ambience_player().map_err(|e| e.to_string()),
+                    layer,
+                    volume.unwrap_or(DEFAULT_AMBIENCE_VOLUME),
+                )
                 .map_err(mlua::Error::external)
         })?,
     )?;

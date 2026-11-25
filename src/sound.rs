@@ -64,34 +64,6 @@ impl Default for JsonParams {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct SoundConfig {
-    wave_type: Option<i64>,
-    base_freq: Option<f64>,
-    freq_limit: Option<f64>,
-    freq_ramp: Option<f64>,
-    freq_dramp: Option<f64>,
-    duty: Option<f64>,
-    duty_ramp: Option<f64>,
-    vib_strength: Option<f64>,
-    vib_speed: Option<f64>,
-    vib_delay: Option<f64>,
-    env_attack: Option<f64>,
-    env_sustain: Option<f64>,
-    env_decay: Option<f64>,
-    env_punch: Option<f64>,
-    lpf_resonance: Option<f64>,
-    lpf_freq: Option<f64>,
-    lpf_ramp: Option<f64>,
-    hpf_freq: Option<f64>,
-    hpf_ramp: Option<f64>,
-    pha_offset: Option<f64>,
-    pha_ramp: Option<f64>,
-    repeat_speed: Option<f64>,
-    arp_speed: Option<f64>,
-    arp_mod: Option<f64>,
-}
-
 #[derive(Clone)]
 pub struct SoundParams {
     sample: Arc<Sample>,

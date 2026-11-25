@@ -1,7 +1,7 @@
 # Third-party licenses
 
 ## TL;DR
-hearth.nvim is derived from player-one.nvim (MIT) and bundles rodio and sfxr (permissive). Their notices must ship with every copy or binary.
+hearth.nvim is derived from player-one.nvim (MIT) and depends on rodio (MIT OR Apache-2.0), cpal (Apache-2.0), mlua (MIT), and sfxr-rs (MIT). Their notices must ship with every copy or binary.
 
 ---
 
@@ -57,7 +57,13 @@ SOFTWARE.
 
 ---
 
-## rodio (MIT OR Apache-2.0) - vendored in crates/rodio
-See crates/rodio/LICENSE-MIT and crates/rodio/LICENSE-APACHE.
+## rodio (MIT OR Apache-2.0) - https://github.com/RustAudio/rodio
+Used from crates.io with `default-features = false, features = ["playback"]` (no file decoders or Symphonia).
 
-Transitive crates: run `cargo deny check licenses` before each release.
+## cpal (Apache-2.0) - https://github.com/RustAudio/cpal
+Used transitively via `rodio` (`playback` feature).
+
+## mlua (MIT) - https://github.com/mlua-rs/mlua
+LuaJIT bindings for Rust.
+
+Transitive crates: run `cargo deny check licenses` (or inspect `cargo metadata`) before each release.

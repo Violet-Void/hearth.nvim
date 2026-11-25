@@ -5,7 +5,7 @@
 //! warm; nothing is sampled from files.
 
 use rodio::source::Source;
-use rodio::{OutputStreamHandle, Sink};
+use rodio::{nz, ChannelCount, Player as RodioPlayer, SampleRate};
 use std::collections::BTreeMap;
 use std::f32::consts::PI;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -395,14 +395,14 @@ impl Iterator for LayerSource {
 }
 
 impl Source for LayerSource {
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
-    fn channels(&self) -> u16 {
-        1
+    fn channels(&self) -> ChannelCount {
+        nz!(1)
     }
-    fn sample_rate(&self) -> u32 {
-        SAMPLE_RATE
+    fn sample_rate(&self) -> SampleRate {
+        nz!(44_100)
     }
     fn total_duration(&self) -> Option<Duration> {
         None
@@ -410,7 +410,7 @@ impl Source for LayerSource {
 }
 
 struct Running {
-    sink: Sink,
+    sink: RodioPlayer,
     ctl: Arc<Control>,
 }
 
@@ -426,13 +426,16 @@ impl Ambience {
     }
 
     /// Start a layer, or just update its volume if it is already running.
-    pub fn start(&self, handle: &OutputStreamHandle, layer: Layer, volume: f32) -> Result<(), String> {
+    pub fn start<F>(&self, make_player: F, layer: Layer, volume: f32) -> Result<(), String>
+    where
+        F: FnOnce() -> Result<RodioPlayer, String>,
+    {
         let mut layers = self.layers.lock().map_err(|e| e.to_string())?;
         if let Some(running) = layers.get(&layer) {
             running.ctl.set_volume(volume);
             return Ok(());
         }
-        let sink = Sink::try_new(handle).map_err(|e| format!("Failed to create audio sink: {e}"))?;
+        let sink = make_player()?;
         let ctl = Arc::new(Control::new(volume));
         sink.append(LayerSource::new(layer, layer.default_seed(), ctl.clone()));
         layers.insert(layer, Running { sink, ctl });
