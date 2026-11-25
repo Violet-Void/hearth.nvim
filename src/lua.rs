@@ -18,6 +18,7 @@ pub fn create_lua_module(lua: &Lua) -> LuaResult<LuaTable> {
     register_play_preset(lua, &exports, player.clone())?;
     register_stop(lua, &exports, player.clone())?;
     register_ambience(lua, &exports, player)?;
+    register_last_stream_error(lua, &exports)?;
 
     Ok(exports)
 }
@@ -148,5 +149,12 @@ fn register_ambience(lua: &Lua, exports: &LuaTable, player: Arc<Player>) -> LuaR
             }
             Ok(table)
         })?,
+    )
+}
+
+fn register_last_stream_error(lua: &Lua, exports: &LuaTable) -> LuaResult<()> {
+    exports.set(
+        "last_stream_error",
+        lua.create_function(|_, ()| Ok(crate::player::last_stream_error()))?,
     )
 }

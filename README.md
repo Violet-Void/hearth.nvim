@@ -11,7 +11,7 @@ Procedural sound effects and cabin ambience (fire, snow wind, water) for Neovim,
 - **Procedural ambience (`hearth.ambience`)**: real-time synthesised `fire`, `wind`, and `water` layers running on independent `rodio` players with smooth per-layer volume and fade-out control.
 - **Variation & directional cursor cues (`hearth.variation`)**: subtle random pitch/volume/decay variation profiles (`frequent`, `occasional`, or custom) and directional cursor-movement pitch shifts (`up`, `down`, `left`, `right`).
 - **fzf-lua integration (`hearth.fzf`)**: optional `open`, `launch`, `select`, and `cancel` audio feedback via `winopts.on_create`.
-- **Linux Wayland & X11 compatibility without vendored crates**: uses upstream `rodio` 0.23 (`default-features = false, features = ["playback"]`) with `DeviceSinkBuilder::with_error_callback` filtering harmless `ALSA function 'poll'` / `POLLERR` noise on terminal resize/signals and `log_on_drop(false)`.
+- **Linux Wayland & X11 compatibility without vendored crates**: uses upstream `rodio` 0.23 (`default-features = false, features = ["playback"]`) with `DeviceSinkBuilder::with_error_callback` filtering harmless `ALSA function 'poll'` (`EINTR` / `-4` / `POLLERR`) interrupts and recording genuine stream errors for `:checkhealth hearth` without writing to `stderr` (plus `log_on_drop(false)`).
 
 ## Requirements
 

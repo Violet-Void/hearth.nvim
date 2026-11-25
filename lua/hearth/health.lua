@@ -75,6 +75,16 @@ function M.check()
 	else
 		vim.health.ok(string.format("Neovim version compatible: %d.%d", nvim_version.major, nvim_version.minor))
 	end
+
+	local lib = package.loaded["hearth.binary"]
+	if type(lib) == "table" and type(lib.last_stream_error) == "function" then
+		local ok, stream_err = pcall(lib.last_stream_error)
+		if ok and stream_err and stream_err ~= "" then
+			vim.health.warn("Last audio stream error: " .. stream_err)
+		elseif ok then
+			vim.health.ok("No audio stream errors recorded")
+		end
+	end
 end
 
 --- Validates and checks the status of the Hearth binary installation
