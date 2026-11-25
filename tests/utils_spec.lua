@@ -496,5 +496,17 @@ describe("Utils", function()
             assert.are.equal(1, #played_params)
             assert.is_true(played_params[1].base_freq > 440.0)
         end)
+
+        it("rejects non-string entries in event arrays", function()
+            local ok, err = pcall(Utils.load_theme, {
+                {
+                    event = { "InsertEnter", 42 },
+                    sound = { wave_type = 2, base_freq = 440.0 },
+                },
+            })
+
+            assert.is_false(ok)
+            assert.truthy(err:find("Invalid 'event' entry in sound configuration at index 1", 1, true))
+        end)
     end)
 end)

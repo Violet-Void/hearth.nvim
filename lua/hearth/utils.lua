@@ -318,7 +318,14 @@ function M.load_theme(theme)
         -- Expand array-valued events so per-event filtering and variation apply to each event.
         if type(v.event) == "table" then
             for _, ev_name in ipairs(v.event) do
-                if type(ev_name) == "string" and Config.is_sound_enabled(ev_name) then
+                if type(ev_name) ~= "string" then
+                    error(string.format(
+                        "Invalid 'event' entry in sound configuration at index %d: expected string, got %s",
+                        i,
+                        type(ev_name)
+                    ))
+                end
+                if Config.is_sound_enabled(ev_name) then
                     M._create_autocmds(ev_name, v.sound, v.callback)
                 end
             end
