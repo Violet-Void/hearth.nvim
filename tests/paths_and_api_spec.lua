@@ -204,4 +204,73 @@ describe("paths, version, api and debug", function()
 		assert.is_true(ok)
 		assert.are.same({ "sfx", "ambience" }, stops)
 	end)
+
+	it("reports genuine stream errors through vim.health.warn in health.check()", function()
+		local health = require("hearth.health")
+		local orig_health = vim.health
+		local orig_binary = package.loaded["hearth.binary"]
+		local warnings, oks = {}, {}
+
+		vim.health = {
+			start = function() end,
+			ok = function(msg)
+				oks[#oks + 1] = msg
+			end,
+			warn = function(msg)
+				warnings[#warnings + 1] = msg
+			end,
+			error = function() end,
+		}
+		package.loaded["hearth.binary"] = {
+			last_stream_error = function()
+				return "The requested device is no longer available"
+			end,
+		}
+
+		local ok, err = pcall(health.check)
+		vim.health = orig_health
+		package.loaded["hearth.binary"] = orig_binary
+
+		assert.is_true(ok, err)
+		assert.are.equal(1, #warnings)
+		assert.truthy(warnings[1]:find("The requested device is no longer available", 1, true))
+	end)
+
+	it("reports healthy audio stream status in health.check() when no error is recorded", function()
+		local health = require("hearth.health")
+		local orig_health = vim.health
+		local orig_binary = package.loaded["hearth.binary"]
+		local warnings, oks = {}, {}
+
+		vim.health = {
+			start = function() end,
+			ok = function(msg)
+				oks[#oks + 1] = msg
+			end,
+			warn = function(msg)
+				warnings[#warnings + 1] = msg
+			end,
+			error = function() end,
+		}
+		package.loaded["hearth.binary"] = {
+			last_stream_error = function()
+				return nil
+			end,
+		}
+
+		local ok, err = pcall(health.check)
+		vim.health = orig_health
+		package.loaded["hearth.binary"] = orig_binary
+
+		assert.is_true(ok, err)
+		assert.are.equal(0, #warnings)
+		local found = false
+		for _, msg in ipairs(oks) do
+			if msg == "No audio stream errors recorded" then
+				found = true
+				break
+			end
+		end
+		assert.is_true(found)
+	end)
 end)

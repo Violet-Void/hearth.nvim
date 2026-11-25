@@ -13,19 +13,40 @@ pub enum PlayError {
     Playback(String),
 }
 
+static LAST_STREAM_ERROR: Mutex<Option<String>> = Mutex::new(None);
+
 pub(crate) fn is_harmless_alsa_poll_error(msg: &str) -> bool {
     msg.contains("ALSA function 'poll' failed with error 'EINTR")
+        || msg.contains("ALSA function 'poll' failed with error 'Unknown errno (-4)'")
+        || msg.contains("ALSA function 'poll' failed with error 'Interrupted system call")
         || msg.contains("alsa::poll() returned POLLERR")
 }
 
-/// Filter harmless ALSA poll/EINTR noise on Linux Wayland/X11 sessions while keeping
-/// real stream errors visible.
-fn alsa_poll_error_callback(err: CpalError) {
-    let msg = err.to_string();
-    if is_harmless_alsa_poll_error(&msg) {
+fn record_stream_error(msg: &str) {
+    if is_harmless_alsa_poll_error(msg) {
         return;
     }
-    eprintln!("an error occurred on output stream: {msg}");
+    let mut slot = LAST_STREAM_ERROR.lock().unwrap_or_else(|e| e.into_inner());
+    *slot = Some(msg.to_string());
+}
+
+pub fn last_stream_error() -> Option<String> {
+    LAST_STREAM_ERROR
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+}
+
+#[cfg(test)]
+pub(crate) fn clear_last_stream_error() {
+    let mut slot = LAST_STREAM_ERROR.lock().unwrap_or_else(|e| e.into_inner());
+    *slot = None;
+}
+
+/// Filter harmless ALSA poll/EINTR noise on Linux Wayland/X11 sessions while recording
+/// genuine stream errors for `:checkhealth hearth` instead of corrupting Neovim's stderr.
+fn alsa_poll_error_callback(err: CpalError) {
+    record_stream_error(&err.to_string());
 }
 
 fn try_open_sink_once() -> Result<MixerDeviceSink, PlayError> {
@@ -214,12 +235,23 @@ impl Player {
 
 #[cfg(test)]
 mod tests {
-    use super::is_harmless_alsa_poll_error;
+    use super::{
+        clear_last_stream_error, is_harmless_alsa_poll_error, last_stream_error, record_stream_error,
+    };
 
     #[test]
     fn filters_harmless_alsa_poll_errors() {
         assert!(is_harmless_alsa_poll_error(
             "A backend-specific error has occurred: ALSA function 'poll' failed with error 'EINTR (Interrupted system call)'"
+        ));
+        assert!(is_harmless_alsa_poll_error(
+            "ALSA function 'poll' failed with error 'Unknown errno (-4)'"
+        ));
+        assert!(is_harmless_alsa_poll_error(
+            "A backend-specific error has occurred: ALSA function 'poll' failed with error 'Unknown errno (-4)'"
+        ));
+        assert!(is_harmless_alsa_poll_error(
+            "ALSA function 'poll' failed with error 'Interrupted system call (4)'"
         ));
         assert!(is_harmless_alsa_poll_error(
             "A backend-specific error has occurred: alsa::poll() returned POLLERR"
@@ -230,5 +262,27 @@ mod tests {
         assert!(!is_harmless_alsa_poll_error(
             "The requested device is no longer available"
         ));
+    }
+
+    #[test]
+    fn records_only_non_harmless_stream_errors() {
+        clear_last_stream_error();
+
+        record_stream_error("ALSA function 'poll' failed with error 'Unknown errno (-4)'");
+        assert_eq!(last_stream_error(), None);
+
+        record_stream_error("The requested device is no longer available");
+        assert_eq!(
+            last_stream_error().as_deref(),
+            Some("The requested device is no longer available")
+        );
+
+        record_stream_error("ALSA function 'poll' failed with error 'EINTR (Interrupted system call)'");
+        assert_eq!(
+            last_stream_error().as_deref(),
+            Some("The requested device is no longer available")
+        );
+
+        clear_last_stream_error();
     }
 }
