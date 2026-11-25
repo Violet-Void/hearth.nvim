@@ -177,4 +177,31 @@ describe("paths, version, api and debug", function()
 		assert.is_false(ok)
 		assert.truthy(notified and notified:find("ambience load failed", 1, true))
 	end)
+
+	it("stops both SFX and ambience through the public stop API", function()
+		local Config = require("hearth.config")
+		local Utils = require("hearth.utils")
+		local Api = require("hearth.api")
+		local Ambience = require("hearth.ambience")
+		local orig_is_enabled = Config.is_enabled
+		local orig_stop, orig_amb_stop = Utils.stop, Ambience.stop
+		local stops = {}
+
+		Config.is_enabled = true
+		Utils.stop = function()
+			stops[#stops + 1] = "sfx"
+		end
+		Ambience.stop = function()
+			stops[#stops + 1] = "ambience"
+			return true
+		end
+
+		local ok = Api.stop()
+
+		Utils.stop, Ambience.stop = orig_stop, orig_amb_stop
+		Config.is_enabled = orig_is_enabled
+
+		assert.is_true(ok)
+		assert.are.same({ "sfx", "ambience" }, stops)
+	end)
 end)

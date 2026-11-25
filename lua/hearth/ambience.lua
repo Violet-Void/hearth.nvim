@@ -132,7 +132,11 @@ local function running()
 	local ok, status = pcall(function()
 		return M._lib().ambience_status()
 	end)
-	return ok and status or {}
+	if not ok then
+		notify(tostring(status):gsub("^.*:%d+:%s*", ""), vim.log.levels.WARN)
+		return {}
+	end
+	return status or {}
 end
 
 ---@return { running: table<string, number>, volume: number, active: boolean }
@@ -161,13 +165,17 @@ function M.set_volume(value, layer)
 		return false
 	end
 	value = clamp(value)
+	if layer ~= nil and type(layer) ~= "string" then
+		notify(("layer must be a string (got %s)"):format(type(layer)), vim.log.levels.ERROR)
+		return false
+	end
+	if layer and not vim.tbl_contains(M.layers, layer) then
+		notify(("unknown layer '%s' (expected %s)"):format(layer, table.concat(M.layers, ", ")), vim.log.levels.ERROR)
+		return false
+	end
 	local ok, res = pcall(function()
 		local lib = M._lib()
 		if layer then
-			local names, err = normalize(layer)
-			if not names then
-				error(err, 0)
-			end
 			lib.ambience_set_volume(layer, value)
 		else
 			state.volume = value

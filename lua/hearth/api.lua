@@ -66,7 +66,23 @@ function M.stop()
 		return
 	end
 	local ok, err = pcall(Utils.stop)
-	return handle_error(ok, err)
+	if not ok then
+		return handle_error(false, err)
+	end
+
+	local ambience_ok, ambience = pcall(require, "hearth.ambience")
+	if not ambience_ok then
+		return handle_error(false, ambience)
+	end
+	local stopped_ok, stopped = pcall(ambience.stop)
+	if not stopped_ok then
+		return handle_error(false, stopped)
+	end
+	if stopped == false then
+		return handle_error(false, "failed to stop ambience")
+	end
+
+	return true
 end
 
 ---Load a sound theme
@@ -121,9 +137,11 @@ end
 function M.disable()
 	local failures = {}
 	local function attempt(label, fn)
-		local ok, err = pcall(fn)
+		local ok, result = pcall(fn)
 		if not ok then
-			failures[#failures + 1] = label .. ": " .. tostring(err)
+			failures[#failures + 1] = label .. ": " .. tostring(result)
+		elseif result == false then
+			failures[#failures + 1] = label .. ": failed"
 		end
 	end
 

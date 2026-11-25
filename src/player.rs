@@ -44,6 +44,9 @@ fn try_open_sink_once() -> Result<MixerDeviceSink, PlayError> {
 
             let mut opened = None;
             for device in devices {
+                if device.to_string().to_lowercase().contains("null") {
+                    continue;
+                }
                 if let Ok(builder) = DeviceSinkBuilder::from_device(device) {
                     if let Ok(sink) = builder
                         .with_error_callback(alsa_poll_error_callback)

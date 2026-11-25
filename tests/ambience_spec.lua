@@ -145,6 +145,29 @@ describe("ambience", function()
 		assert.are.equal(2, #errors)
 	end)
 
+	it("rejects non-string per-layer volume targets", function()
+		assert.is_false(A.set_volume(0.5, { "fire" }))
+		assert.are.equal(0, #calls)
+		assert.is_truthy(errors[1]:find("layer must be a string", 1, true))
+	end)
+
+	it("notifies when the running status cannot be read", function()
+		local warned
+		vim.notify = function(msg, level)
+			if level == vim.log.levels.WARN then
+				warned = msg
+			end
+		end
+		local lib = A._lib()
+		lib.ambience_status = function()
+			error("status unavailable")
+		end
+		local status = A.status()
+		assert.are.same({}, status.running)
+		assert.is_false(status.active)
+		assert.truthy(warned and warned:find("status unavailable", 1, true))
+	end)
+
 	it("adjust steps the master volume", function()
 		A.adjust(0.05)
 		assert.is_true(math.abs(A.status().volume - 0.30) < 1e-9)

@@ -27,6 +27,7 @@ function M.download_file(url, output_path, timeout)
 		error(errors.format_error("download_failed", "Missing URL or output path"))
 	end
 
+	local max_time = type(timeout) == "number" and timeout > 0 and timeout or 60
 	local cmd = {
 		"curl",
 		"--fail",
@@ -36,7 +37,7 @@ function M.download_file(url, output_path, timeout)
 		"--connect-timeout",
 		"10",
 		"--max-time",
-		tostring(timeout or 60),
+		tostring(max_time),
 		url,
 		"--output",
 		output_path,
