@@ -64,6 +64,14 @@ M.sounds = {
 
 local managed_hooks = setmetatable({}, { __mode = "k" })
 local use_launch_sound = false
+local active_picker = nil
+local hrtime = (vim.uv or vim.loop).hrtime
+local SELECT_DEDUP_NS = 200 * 1e6 -- 200ms window linking TermClose and fzf-lua action callback
+
+function M._reset()
+	active_picker = nil
+	use_launch_sound = false
+end
 
 --- Make the next picker open play the launch chime instead of the plain open sound.
 function M.mark_launch()
@@ -86,6 +94,19 @@ end
 ---@return function
 function M.wrap_action(fn)
 	return function(...)
+		if
+			active_picker
+			and active_picker.selected
+			and active_picker.selected_ns
+			and (hrtime() - active_picker.selected_ns) < SELECT_DEDUP_NS
+		then
+			active_picker = nil
+			return fn(...)
+		end
+		if active_picker then
+			active_picker.selected = true
+			active_picker.selected_ns = hrtime()
+		end
 		M.play("select")
 		return fn(...)
 	end
@@ -118,24 +139,34 @@ function M.on_create(event)
 		return
 	end
 
-	local cancelled = false
+	local state = { cancelled = false, selected = false, selected_ns = nil }
+	active_picker = state
+
 	vim.api.nvim_create_autocmd("TermClose", {
 		buffer = bufnr,
 		once = true,
 		callback = function(args)
-			if cancelled then
+			if state.cancelled or state.selected then
+				if active_picker == state then
+					active_picker = nil
+				end
 				return
 			end
 			local status = (args.data and args.data.status ~= nil) and args.data.status
 				or (vim.v.event and vim.v.event.status)
 			if status == 0 then
-				variation.play_varied(M.sounds.select, "occasional")
+				state.selected = true
+				state.selected_ns = hrtime()
+				M.play("select")
 			end
 		end,
 	})
 
 	vim.keymap.set({ "n", "t" }, "<Esc>", function()
-		cancelled = true
+		state.cancelled = true
+		if active_picker == state then
+			active_picker = nil
+		end
 		variation.play_varied(M.sounds.cancel, "occasional")
 		if type(winid) == "number" and vim.api.nvim_win_is_valid(winid) then
 			vim.api.nvim_win_close(winid, true)

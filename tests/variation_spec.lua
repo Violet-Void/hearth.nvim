@@ -12,15 +12,29 @@ end
 describe("variation", function()
 	local base
 	local orig_variation
+	local created_wins
+	local created_bufs
 
 	before_each(function()
 		base = { base_freq = 440, sound_vol = 0.1, env_decay = 0.1 }
 		orig_variation = Config.variation
 		Config.variation = nil
+		created_wins = {}
+		created_bufs = {}
 		V.reset_cursor()
 	end)
 
 	after_each(function()
+		for _, win in ipairs(created_wins) do
+			if vim.api.nvim_win_is_valid(win) then
+				vim.api.nvim_win_close(win, true)
+			end
+		end
+		for _, buf in ipairs(created_bufs) do
+			if vim.api.nvim_buf_is_valid(buf) then
+				vim.api.nvim_buf_delete(buf, { force = true })
+			end
+		end
 		Config.variation = orig_variation
 		V.reset_cursor()
 	end)
@@ -81,7 +95,9 @@ describe("variation", function()
 
 	it("resets directional tracking on buffer switches", function()
 		local buf1 = vim.api.nvim_create_buf(false, true)
+		created_bufs[#created_bufs + 1] = buf1
 		local buf2 = vim.api.nvim_create_buf(false, true)
+		created_bufs[#created_bufs + 1] = buf2
 		vim.api.nvim_buf_set_lines(buf1, 0, -1, false, { "a", "b", "c", "d", "e" })
 		vim.api.nvim_buf_set_lines(buf2, 0, -1, false, { "x", "y" })
 		local win = vim.api.nvim_open_win(buf1, true, {
@@ -91,6 +107,7 @@ describe("variation", function()
 			width = 10,
 			height = 2,
 		})
+		created_wins[#created_wins + 1] = win
 
 		local played = {}
 		local function sink(s)
@@ -112,10 +129,6 @@ describe("variation", function()
 		vim.api.nvim_win_set_cursor(win, { 2, 0 })
 		V.play_cursor({ base_freq = 440 }, "frequent", sink)
 		assert.is_true(math.abs(1200 * math.log(played[3].base_freq / 440, 2) - -60) < 1e-6)
-
-		vim.api.nvim_win_close(win, true)
-		vim.api.nvim_buf_delete(buf1, { force = true })
-		vim.api.nvim_buf_delete(buf2, { force = true })
 	end)
 
 	it("honours user profiles from config", function()
@@ -129,9 +142,14 @@ end)
 describe("fzf", function()
 	local played
 	local orig_play_varied
+	local created_wins
+	local created_bufs
 
 	before_each(function()
 		played = {}
+		created_wins = {}
+		created_bufs = {}
+		F._reset()
 		orig_play_varied = V.play_varied
 		V.play_varied = function(s)
 			played[#played + 1] = s
@@ -140,6 +158,17 @@ describe("fzf", function()
 	end)
 
 	after_each(function()
+		for _, win in ipairs(created_wins) do
+			if vim.api.nvim_win_is_valid(win) then
+				vim.api.nvim_win_close(win, true)
+			end
+		end
+		for _, buf in ipairs(created_bufs) do
+			if vim.api.nvim_buf_is_valid(buf) then
+				vim.api.nvim_buf_delete(buf, { force = true })
+			end
+		end
+		F._reset()
 		V.play_varied = orig_play_varied
 	end)
 
@@ -192,6 +221,7 @@ describe("fzf", function()
 
 	it("maps Escape to cancel and closes window, and plays select on status 0 TermClose", function()
 		local bufnr = vim.api.nvim_create_buf(false, true)
+		created_bufs[#created_bufs + 1] = bufnr
 		local winid = vim.api.nvim_open_win(bufnr, false, {
 			relative = "editor",
 			row = 0,
@@ -200,6 +230,7 @@ describe("fzf", function()
 			height = 1,
 			style = "minimal",
 		})
+		created_wins[#created_wins + 1] = winid
 		F.on_create({ bufnr = bufnr, winid = winid })
 		assert.are.equal(F.sounds.open, played[1])
 
@@ -217,9 +248,53 @@ describe("fzf", function()
 		esc_cb()
 		assert.are.equal(F.sounds.cancel, played[3])
 		assert.is_false(vim.api.nvim_win_is_valid(winid))
+	end)
 
-		if vim.api.nvim_buf_is_valid(bufnr) then
-			vim.api.nvim_buf_delete(bufnr, { force = true })
-		end
+	it("deduplicates select when TermClose precedes wrap_action", function()
+		local bufnr = vim.api.nvim_create_buf(false, true)
+		created_bufs[#created_bufs + 1] = bufnr
+		F.on_create({ bufnr = bufnr })
+		assert.are.equal(F.sounds.open, played[1])
+
+		vim.api.nvim_exec_autocmds("TermClose", { buffer = bufnr, data = { status = 0 } })
+		local action_called = 0
+		F.wrap_action(function(x)
+			action_called = action_called + 1
+			return x
+		end)("ok")
+
+		assert.are.equal(1, action_called)
+		assert.are.equal(2, #played)
+		assert.are.equal(F.sounds.select, played[2])
+	end)
+
+	it("deduplicates select when wrap_action precedes TermClose", function()
+		local bufnr = vim.api.nvim_create_buf(false, true)
+		created_bufs[#created_bufs + 1] = bufnr
+		F.on_create({ bufnr = bufnr })
+		assert.are.equal(F.sounds.open, played[1])
+
+		local action_called = 0
+		F.wrap_action(function()
+			action_called = action_called + 1
+		end)()
+		vim.api.nvim_exec_autocmds("TermClose", { buffer = bufnr, data = { status = 0 } })
+
+		assert.are.equal(1, action_called)
+		assert.are.equal(2, #played)
+		assert.are.equal(F.sounds.select, played[2])
+	end)
+
+	it("plays select for standalone wrap_action without an active picker", function()
+		local action_called = 0
+		local ret = F.wrap_action(function(v)
+			action_called = action_called + 1
+			return v .. "!"
+		end)("done")
+
+		assert.are.equal("done!", ret)
+		assert.are.equal(1, action_called)
+		assert.are.equal(1, #played)
+		assert.are.equal(F.sounds.select, played[1])
 	end)
 end)

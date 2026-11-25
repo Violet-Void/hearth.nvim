@@ -25,20 +25,32 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout license notices
+        uses: actions/checkout@v4
+        with:
+          path: _repo
+          persist-credentials: false
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Bundle license notices
+        run: |
+          cp _repo/LICENSE _repo/THIRD_PARTY_LICENSES.md release-assets/
 
       - name: Verify artifacts
         run: |
-          if [ -z "$(find . -type f)" ]; then
-            echo "No artifacts found!"
+          if [ -z "$(find release-assets -type f \( -name '*.so' -o -name '*.dylib' -o -name '*.dll' \))" ]; then
+            echo "No native artifacts found!"
             exit 1
           fi
 
       - name: Generate checksums
         run: |
-          find . -type f -not -name "*.sha256" | while read file; do
-            sha256sum "$file" > "${file}.sha256"
+          find release-assets -type f -not -name "*.sha256" | while IFS= read -r file; do
+            (cd "$(dirname "$file")" && sha256sum "$(basename "$file")" > "$(basename "$file").sha256")
           done
 
       - name: Upload Release Assets
@@ -47,7 +59,7 @@ jobs:
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           token: ${{ github.token }}
-          files: ./**/*
+          files: release-assets/**/*
           draft: false
           prerelease: false
           generate_release_notes: true

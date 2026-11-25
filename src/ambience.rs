@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 pub const SAMPLE_RATE: u32 = 44_100;
+const SAMPLE_RATE_NZ: SampleRate = std::num::NonZeroU32::new(SAMPLE_RATE).unwrap();
 const SR: f32 = SAMPLE_RATE as f32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -402,7 +403,7 @@ impl Source for LayerSource {
         nz!(1)
     }
     fn sample_rate(&self) -> SampleRate {
-        nz!(44_100)
+        SAMPLE_RATE_NZ
     }
     fn total_duration(&self) -> Option<Duration> {
         None

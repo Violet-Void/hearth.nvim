@@ -249,13 +249,16 @@ end
 function M._create_autocmds(autocmd, sound, callback)
     vim.api.nvim_create_autocmd(autocmd, {
         group = Config.group,
-        callback = function()
-            if Config.is_enabled and Config.is_sound_enabled(autocmd) then
+        callback = function(ev)
+            local event_name = (type(ev) == "table" and type(ev.event) == "string" and ev.event ~= "" and ev.event)
+                or (type(autocmd) == "string" and autocmd)
+                or nil
+            if Config.is_enabled and (not event_name or Config.is_sound_enabled(event_name)) then
                 if callback then
                     if type(callback) == "function" then
                         callback(sound)
                     elseif type(callback) == "string" then
-                        local effective = apply_event_variation(autocmd, sound)
+                        local effective = event_name and apply_event_variation(event_name, sound) or sound
                         if callback == "append" then
                             M.append(effective)
                         elseif callback == "play" then
@@ -269,7 +272,7 @@ function M._create_autocmds(autocmd, sound, callback)
                         error("callback must be a function or a string")
                     end
                 else
-                    M.play(apply_event_variation(autocmd, sound))
+                    M.play(event_name and apply_event_variation(event_name, sound) or sound)
                 end
             end
         end,
@@ -312,8 +315,14 @@ function M.load_theme(theme)
             error(string.format("Missing 'sound' in sound configuration at index %d", i))
         end
         
-        -- Only create autocmds for enabled sound events
-        if Config.is_sound_enabled(v.event) then
+        -- Expand array-valued events so per-event filtering and variation apply to each event.
+        if type(v.event) == "table" then
+            for _, ev_name in ipairs(v.event) do
+                if type(ev_name) == "string" and Config.is_sound_enabled(ev_name) then
+                    M._create_autocmds(ev_name, v.sound, v.callback)
+                end
+            end
+        elseif Config.is_sound_enabled(v.event) then
             M._create_autocmds(v.event, v.sound, v.callback)
         end
     end

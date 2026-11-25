@@ -14,7 +14,8 @@ pub enum PlayError {
 }
 
 pub(crate) fn is_harmless_alsa_poll_error(msg: &str) -> bool {
-    msg.contains("ALSA function 'poll'") || msg.contains("alsa::poll() returned POLLERR")
+    msg.contains("ALSA function 'poll' failed with error 'EINTR")
+        || msg.contains("alsa::poll() returned POLLERR")
 }
 
 /// Filter harmless ALSA poll/EINTR noise on Linux Wayland/X11 sessions while keeping
@@ -218,6 +219,9 @@ mod tests {
         ));
         assert!(is_harmless_alsa_poll_error(
             "A backend-specific error has occurred: alsa::poll() returned POLLERR"
+        ));
+        assert!(!is_harmless_alsa_poll_error(
+            "A backend-specific error has occurred: ALSA function 'poll' failed with error 'ENODEV (No such device)'"
         ));
         assert!(!is_harmless_alsa_poll_error(
             "The requested device is no longer available"

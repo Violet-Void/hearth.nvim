@@ -120,6 +120,7 @@ describe("ambience", function()
 		A.start()
 		calls = {}
 		assert.is_true(A.set_volume(2))
+		assert.are.equal(3, #calls)
 		local volumes = {}
 		for _, call in ipairs(calls) do
 			assert.are.equal("volume", call[1])

@@ -78,11 +78,15 @@ function M.get_current_version()
 	return nil
 end
 
-local function fetch_latest_version(cache_file, current_time)
+local function fetch_latest_version(cache_file)
 	local ok, result = pcall(vim.fn.system, {
 		"curl",
 		"--silent",
 		"--fail",
+		"--connect-timeout",
+		"5",
+		"--max-time",
+		"15",
 		"https://api.github.com/repos/Violet-Void/hearth.nvim/releases/latest",
 	})
 
@@ -92,7 +96,7 @@ local function fetch_latest_version(cache_file, current_time)
 
 	local dec_ok, release = pcall(vim.json.decode, result)
 	if dec_ok and type(release) == "table" and type(release.tag_name) == "string" and release.tag_name ~= "" then
-		pcall(vim.fn.writefile, { tostring(current_time), release.tag_name }, cache_file)
+		pcall(vim.fn.writefile, { tostring(os.time()), release.tag_name }, cache_file)
 		return release.tag_name
 	end
 	return nil
@@ -115,11 +119,11 @@ function M.get_latest_version(sync)
 	end
 
 	if sync then
-		return fetch_latest_version(cache_file, current_time) or cached_version
+		return fetch_latest_version(cache_file) or cached_version
 	end
 
 	vim.defer_fn(function()
-		fetch_latest_version(cache_file, current_time)
+		fetch_latest_version(cache_file)
 	end, 1000)
 
 	return cached_version
