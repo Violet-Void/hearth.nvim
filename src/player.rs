@@ -17,8 +17,9 @@ static LAST_STREAM_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
 pub(crate) fn is_harmless_alsa_poll_error(msg: &str) -> bool {
     msg.contains("ALSA function 'poll' failed with error 'EINTR")
-        || msg.contains("ALSA function 'poll' failed with error 'Unknown errno (-4)'")
         || msg.contains("ALSA function 'poll' failed with error 'Interrupted system call")
+        || msg.contains("ALSA function 'poll' failed with error 'Unknown errno (-4)'")
+        || msg.contains("ALSA function 'poll' failed with error 'Unknown error (-4)'")
         || msg.contains("alsa::poll() returned POLLERR")
 }
 
@@ -236,7 +237,8 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::{
-        clear_last_stream_error, is_harmless_alsa_poll_error, last_stream_error, record_stream_error,
+        clear_last_stream_error, is_harmless_alsa_poll_error, last_stream_error,
+        record_stream_error,
     };
 
     #[test]
@@ -249,6 +251,12 @@ mod tests {
         ));
         assert!(is_harmless_alsa_poll_error(
             "A backend-specific error has occurred: ALSA function 'poll' failed with error 'Unknown errno (-4)'"
+        ));
+        assert!(is_harmless_alsa_poll_error(
+            "ALSA function 'poll' failed with error 'Unknown error (-4)'"
+        ));
+        assert!(is_harmless_alsa_poll_error(
+            "an error occurred on output stream: ALSA function 'poll' failed with error 'Unknown error (-4)'"
         ));
         assert!(is_harmless_alsa_poll_error(
             "ALSA function 'poll' failed with error 'Interrupted system call (4)'"
@@ -271,13 +279,18 @@ mod tests {
         record_stream_error("ALSA function 'poll' failed with error 'Unknown errno (-4)'");
         assert_eq!(last_stream_error(), None);
 
+        record_stream_error("ALSA function 'poll' failed with error 'Unknown error (-4)'");
+        assert_eq!(last_stream_error(), None);
+
         record_stream_error("The requested device is no longer available");
         assert_eq!(
             last_stream_error().as_deref(),
             Some("The requested device is no longer available")
         );
 
-        record_stream_error("ALSA function 'poll' failed with error 'EINTR (Interrupted system call)'");
+        record_stream_error(
+            "ALSA function 'poll' failed with error 'EINTR (Interrupted system call)'",
+        );
         assert_eq!(
             last_stream_error().as_deref(),
             Some("The requested device is no longer available")
