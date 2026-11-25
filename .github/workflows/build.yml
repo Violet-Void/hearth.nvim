@@ -22,27 +22,27 @@ jobs:
           # Linux builds
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            artifact_name: target/x86_64-unknown-linux-gnu/release/libplayer_one.so
+            artifact_name: target/x86_64-unknown-linux-gnu/release/libhearth.so
             extension: so
           - os: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
-            artifact_name: target/aarch64-unknown-linux-gnu/release/libplayer_one.so
+            artifact_name: target/aarch64-unknown-linux-gnu/release/libhearth.so
             extension: so
 
           # macOS builds
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: target/x86_64-apple-darwin/release/libplayer_one.dylib
+            artifact_name: target/x86_64-apple-darwin/release/libhearth.dylib
             extension: dylib
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: target/aarch64-apple-darwin/release/libplayer_one.dylib
+            artifact_name: target/aarch64-apple-darwin/release/libhearth.dylib
             extension: dylib
 
           # Windows builds
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: target/x86_64-pc-windows-msvc/release/player_one.dll
+            artifact_name: target/x86_64-pc-windows-msvc/release/hearth.dll
             extension: dll
 
     steps:

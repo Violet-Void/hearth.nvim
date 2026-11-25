@@ -1,6 +1,7 @@
 use crate::sound::SoundParams;
-use rodio::source::Source;
-use rodio::{OutputStream, OutputStreamHandle, Sink};
+use rodio::buffer::SamplesBuffer;
+use rodio::cpal::traits::HostTrait;
+use rodio::{nz, CpalError, DeviceSinkBuilder, MixerDeviceSink, Player as RodioPlayer};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
@@ -12,8 +13,80 @@ pub enum PlayError {
     Playback(String),
 }
 
+pub(crate) fn is_harmless_alsa_poll_error(msg: &str) -> bool {
+    msg.contains("ALSA function 'poll' failed with error 'EINTR")
+        || msg.contains("alsa::poll() returned POLLERR")
+}
+
+/// Filter harmless ALSA poll/EINTR noise on Linux Wayland/X11 sessions while keeping
+/// real stream errors visible.
+fn alsa_poll_error_callback(err: CpalError) {
+    let msg = err.to_string();
+    if is_harmless_alsa_poll_error(&msg) {
+        return;
+    }
+    eprintln!("an error occurred on output stream: {msg}");
+}
+
+fn try_open_sink_once() -> Result<MixerDeviceSink, PlayError> {
+    let default_attempt = DeviceSinkBuilder::from_default_device().and_then(|builder| {
+        builder
+            .with_error_callback(alsa_poll_error_callback)
+            .open_sink_or_fallback()
+    });
+
+    let mut sink = match default_attempt {
+        Ok(sink) => sink,
+        Err(original_err) => {
+            let devices = rodio::cpal::default_host()
+                .output_devices()
+                .map_err(|_| PlayError::Device(original_err.to_string()))?;
+
+            let mut opened = None;
+            for device in devices {
+                if device.to_string().to_lowercase().contains("null") {
+                    continue;
+                }
+                if let Ok(builder) = DeviceSinkBuilder::from_device(device) {
+                    if let Ok(sink) = builder
+                        .with_error_callback(alsa_poll_error_callback)
+                        .open_sink_or_fallback()
+                    {
+                        opened = Some(sink);
+                        break;
+                    }
+                }
+            }
+
+            opened.ok_or_else(|| PlayError::Device(original_err.to_string()))?
+        }
+    };
+
+    sink.log_on_drop(false);
+    Ok(sink)
+}
+
+fn open_output_sink() -> Result<MixerDeviceSink, PlayError> {
+    // Retry logic for ALSA EINTR errors
+    let mut attempts = 3;
+    loop {
+        match try_open_sink_once() {
+            Ok(sink) => return Ok(sink),
+            Err(e) => {
+                attempts -= 1;
+                if attempts == 0 {
+                    return Err(PlayError::Device(format!(
+                        "Failed to create audio output stream after retries: {e}"
+                    )));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+    }
+}
+
 pub struct Player {
-    audio_context: Arc<Mutex<Option<(OutputStream, OutputStreamHandle, Sink)>>>,
+    audio_context: Arc<Mutex<Option<(MixerDeviceSink, RodioPlayer)>>>,
 }
 
 impl Player {
@@ -26,39 +99,36 @@ impl Player {
     }
 
     fn ensure_audio_initialized(&self) -> Result<(), PlayError> {
-        let mut context = self.audio_context
+        let mut context = self
+            .audio_context
             .lock()
             .map_err(|e| PlayError::Playback(format!("Failed to lock audio context: {}", e)))?;
-        
-        if context.is_none() {
-            // Retry logic for ALSA EINTR errors
-            let mut attempts = 3;
-            let (stream, handle) = loop {
-                match OutputStream::try_default() {
-                    Ok(result) => break result,
-                    Err(e) => {
-                        attempts -= 1;
-                        if attempts == 0 {
-                            return Err(PlayError::Device(format!("Failed to create audio output stream after retries: {}", e)));
-                        }
-                        // Small delay before retry to handle interrupted system calls
-                        std::thread::sleep(std::time::Duration::from_millis(10));
-                    }
-                }
-            };
 
-            let sink = Sink::try_new(&handle)
-                .map_err(|e| PlayError::Device(format!("Failed to create audio sink: {}", e)))?;
-            
-            *context = Some((stream, handle, sink));
+        if context.is_none() {
+            let sink = open_output_sink()?;
+            let sfx_player = RodioPlayer::connect_new(sink.mixer());
+            *context = Some((sink, sfx_player));
         }
-        
+
         Ok(())
+    }
+
+    /// Connect a new independent player to the shared output mixer (for ambience layers).
+    pub fn connect_ambience_player(&self) -> Result<RodioPlayer, PlayError> {
+        self.ensure_audio_initialized()?;
+        let context = self
+            .audio_context
+            .lock()
+            .map_err(|e| PlayError::Playback(format!("Failed to lock audio context: {}", e)))?;
+        context
+            .as_ref()
+            .map(|(sink, _)| RodioPlayer::connect_new(sink.mixer()))
+            .ok_or_else(|| PlayError::Device("Audio output not initialised".to_string()))
     }
 
     pub fn play(&self, params: SoundParams) -> Result<(), PlayError> {
         self.ensure_audio_initialized()?;
-        
+
         let mut generator = params.generator();
 
         let total_duration = (generator.sample.env_attack.powi(2)
@@ -70,14 +140,16 @@ impl Player {
         let mut buffer = vec![0.0; buffer_size];
         generator.generate(&mut buffer);
 
-        let source = rodio::buffer::SamplesBuffer::new(1, 44100, buffer);
+        let source = SamplesBuffer::new(nz!(1), nz!(44_100), buffer);
 
-        let context = self.audio_context
+        let context = self
+            .audio_context
             .lock()
             .map_err(|e| PlayError::Playback(format!("Failed to lock audio context: {}", e)))?;
-        
-        if let Some((_, handle, _)) = context.as_ref() {
-            let _ = handle.play_raw(source.convert_samples());
+
+        if let Some((_, sfx_player)) = context.as_ref() {
+            sfx_player.stop();
+            sfx_player.append(source);
         }
 
         Ok(())
@@ -85,7 +157,7 @@ impl Player {
 
     pub fn append(&self, params: SoundParams) -> Result<(), PlayError> {
         self.ensure_audio_initialized()?;
-        
+
         let mut generator = params.generator();
 
         let total_duration = (generator.sample.env_attack.powi(2)
@@ -97,42 +169,66 @@ impl Player {
         let mut buffer = vec![0.0; buffer_size];
         generator.generate(&mut buffer);
 
-        let source = rodio::buffer::SamplesBuffer::new(1, 44100, buffer);
+        let source = SamplesBuffer::new(nz!(1), nz!(44_100), buffer);
 
-        let context = self.audio_context
+        let context = self
+            .audio_context
             .lock()
             .map_err(|e| PlayError::Playback(format!("Failed to lock audio context: {}", e)))?;
-        
-        if let Some((_, _, sink)) = context.as_ref() {
-            sink.append(source);
+
+        if let Some((_, sfx_player)) = context.as_ref() {
+            sfx_player.append(source);
         }
-        
+
         Ok(())
     }
 
     pub fn play_and_wait(&self, params: SoundParams) -> Result<(), PlayError> {
         self.append(params)?;
 
-        let context = self.audio_context
+        let context = self
+            .audio_context
             .lock()
             .map_err(|e| PlayError::Playback(format!("Failed to lock audio context: {}", e)))?;
-        
-        if let Some((_, _, sink)) = context.as_ref() {
-            sink.sleep_until_end();
+
+        if let Some((_, sfx_player)) = context.as_ref() {
+            sfx_player.sleep_until_end();
         }
 
         Ok(())
     }
 
     pub fn stop(&self) -> Result<(), PlayError> {
-        let context = self.audio_context
+        let context = self
+            .audio_context
             .lock()
             .map_err(|e| PlayError::Playback(format!("Failed to lock audio context: {}", e)))?;
-        
-        if let Some((_, _, sink)) = context.as_ref() {
-            sink.stop();
+
+        if let Some((_, sfx_player)) = context.as_ref() {
+            sfx_player.stop();
         }
-        
+
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_harmless_alsa_poll_error;
+
+    #[test]
+    fn filters_harmless_alsa_poll_errors() {
+        assert!(is_harmless_alsa_poll_error(
+            "A backend-specific error has occurred: ALSA function 'poll' failed with error 'EINTR (Interrupted system call)'"
+        ));
+        assert!(is_harmless_alsa_poll_error(
+            "A backend-specific error has occurred: alsa::poll() returned POLLERR"
+        ));
+        assert!(!is_harmless_alsa_poll_error(
+            "A backend-specific error has occurred: ALSA function 'poll' failed with error 'ENODEV (No such device)'"
+        ));
+        assert!(!is_harmless_alsa_poll_error(
+            "The requested device is no longer available"
+        ));
     }
 }

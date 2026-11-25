@@ -1,5 +1,5 @@
-local Utils = require("player-one.utils")
-local Config = require("player-one.config")
+local Utils = require("hearth.utils")
+local Config = require("hearth.config")
 local assert = require("luassert")
 
 describe("Utils", function()
@@ -276,8 +276,8 @@ describe("Utils", function()
     end)
 
     describe("master_volume effect", function()
-        local Config = require("player-one.config")
-        local Lib = require("player-one.binary") -- This is the actual binary functions module
+        local Config = require("hearth.config")
+        local Lib = require("hearth.binary") -- This is the actual binary functions module
         local captured_params_from_rust_call
 
         local original_master_volume
@@ -412,6 +412,101 @@ describe("Utils", function()
             assert.is_not_nil(captured_params_from_rust_call)
             assert.is_nil(captured_params_from_rust_call.sound_vol,
                 "sound_vol should be nil when not in JSON and master_volume is nil")
+        end)
+    end)
+
+    describe("load_theme", function()
+        local Config = require("hearth.config")
+        local Lib = require("hearth.binary")
+        local orig_is_enabled
+        local orig_curr_theme
+        local orig_theme
+        local orig_theme_config
+        local orig_group
+        local orig_variation
+        local orig_min_interval
+        local orig_lib_play
+        local played_params
+
+        before_each(function()
+            orig_is_enabled = Config.is_enabled
+            orig_curr_theme = Config.curr_theme
+            orig_theme = Config.theme
+            orig_theme_config = Config.theme_config
+            orig_group = Config.group
+            orig_variation = Config.variation
+            orig_min_interval = Config.min_interval
+            orig_lib_play = Lib.play
+            played_params = {}
+
+            Config.is_enabled = true
+            Config.theme = "chiptune"
+            Config.curr_theme = "chiptune"
+            Config.theme_config = {
+                chiptune = {
+                    InsertLeave = false,
+                },
+            }
+            Config.min_interval = 0
+            Config.variation = {
+                enabled = true,
+                event_profiles = {
+                    InsertEnter = { pitch_cents = 100 },
+                },
+            }
+            Config.group = vim.api.nvim_create_augroup("HearthUtilsSpecTest", { clear = true })
+            Lib.play = function(params)
+                played_params[#played_params + 1] = params
+            end
+        end)
+
+        after_each(function()
+            Utils.clear_autocmds()
+            if Config.group then
+                pcall(vim.api.nvim_del_augroup_by_id, Config.group)
+            end
+            Config.is_enabled = orig_is_enabled
+            Config.curr_theme = orig_curr_theme
+            Config.theme = orig_theme
+            Config.theme_config = orig_theme_config
+            Config.group = orig_group
+            Config.variation = orig_variation
+            Config.min_interval = orig_min_interval
+            Lib.play = orig_lib_play
+        end)
+
+        it("expands array events for per-event filtering and variation", function()
+            Utils.load_theme({
+                {
+                    event = { "InsertEnter", "InsertLeave" },
+                    sound = { wave_type = 2, base_freq = 440.0, sound_vol = 0.2 },
+                },
+            })
+
+            vim.api.nvim_exec_autocmds("InsertLeave", {})
+            assert.are.equal(0, #played_params)
+
+            local orig_random = math.random
+            math.random = function()
+                return 1
+            end
+            local ok, err = pcall(vim.api.nvim_exec_autocmds, "InsertEnter", {})
+            math.random = orig_random
+            assert.is_true(ok, err)
+            assert.are.equal(1, #played_params)
+            assert.is_true(played_params[1].base_freq > 440.0)
+        end)
+
+        it("rejects non-string entries in event arrays", function()
+            local ok, err = pcall(Utils.load_theme, {
+                {
+                    event = { "InsertEnter", 42 },
+                    sound = { wave_type = 2, base_freq = 440.0 },
+                },
+            })
+
+            assert.is_false(ok)
+            assert.truthy(err:find("Invalid 'event' entry in sound configuration at index 1", 1, true))
         end)
     end)
 end)
