@@ -119,13 +119,23 @@ end
 ---Disable the plugin and stop all sounds
 ---@return boolean success Whether disable succeeded
 function M.disable()
-	local ok, err = pcall(function()
-		Config.is_enabled = false
-		Utils.clear_autocmds()
-		Utils.stop()
-		require("hearth.ambience").stop()
-	end)
-	return handle_error(ok, err)
+	local failures = {}
+	local function attempt(label, fn)
+		local ok, err = pcall(fn)
+		if not ok then
+			failures[#failures + 1] = label .. ": " .. tostring(err)
+		end
+	end
+
+	Config.is_enabled = false
+	attempt("autocmds", Utils.clear_autocmds)
+	attempt("sounds", Utils.stop)
+	attempt("ambience", require("hearth.ambience").stop)
+
+	if #failures > 0 then
+		return handle_error(false, table.concat(failures, "\n"))
+	end
+	return true
 end
 
 ---Toggle the plugin enabled state
@@ -141,15 +151,21 @@ function M.toggle()
 	end
 end
 
+local function ensure_command(name, command, opts)
+	if vim.fn.exists(":" .. name) == 0 then
+		vim.api.nvim_create_user_command(name, command, opts)
+	end
+end
+
 function M.setup()
-	vim.api.nvim_create_user_command("HearthEnable", M.enable, { desc = "Enable Hearth" })
-	vim.api.nvim_create_user_command("HearthDisable", M.disable, { desc = "Disable Hearth" })
-	vim.api.nvim_create_user_command("HearthToggle", M.toggle, { desc = "Toggle Hearth" })
-	vim.api.nvim_create_user_command("HearthClearCache", function(opts)
+	ensure_command("HearthEnable", M.enable, { desc = "Enable Hearth" })
+	ensure_command("HearthDisable", M.disable, { desc = "Disable Hearth" })
+	ensure_command("HearthToggle", M.toggle, { desc = "Toggle Hearth" })
+	ensure_command("HearthClearCache", function(opts)
 		M.clear_cache(opts.bang)
 	end, { desc = "Clear Hearth binary cache", bang = true })
-	vim.api.nvim_create_user_command("HearthUpdate", M.update, { desc = "Update Hearth binary" })
-	vim.api.nvim_create_user_command("HearthLoad", function(opts)
+	ensure_command("HearthUpdate", M.update, { desc = "Update Hearth binary" })
+	ensure_command("HearthLoad", function(opts)
 		local theme = opts.args
 		if theme ~= "" then
 			M.load_theme(theme)

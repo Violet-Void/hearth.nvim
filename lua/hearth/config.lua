@@ -25,12 +25,6 @@ local defaults = {
 		cache_timeout = 3600,
 		download_timeout = 60,
 		verify_checksum = true,
-		use_development = true,
-		github_api_token = nil,
-		proxy = {
-			url = nil,
-			from_env = true,
-		},
 	},
 	-- Per-event random variation and cursor-direction pitch (see hearth.variation)
 	variation = {

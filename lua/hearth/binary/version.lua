@@ -1,5 +1,6 @@
 local errors = require("hearth.binary.errors")
 local paths = require("hearth.binary.paths")
+local Config = require("hearth.config")
 
 local M = {}
 
@@ -107,19 +108,20 @@ end
 function M.get_latest_version(sync)
 	local cache_file = vim.fn.stdpath("cache") .. "/hearth-version"
 	local current_time = os.time()
+	local cache_timeout = (Config.binary and Config.binary.cache_timeout) or 3600
 	local cached_version = nil
 
 	if vim.fn.filereadable(cache_file) == 1 then
 		local cache = vim.fn.readfile(cache_file)
 		local timestamp = tonumber(cache[1])
 		cached_version = cache[2]
-		if timestamp and cached_version and cached_version ~= "" and current_time - timestamp < 86400 then
+		if timestamp and cached_version and cached_version ~= "" and current_time - timestamp < cache_timeout then
 			return cached_version
 		end
 	end
 
 	if sync then
-		return fetch_latest_version(cache_file) or cached_version
+		return fetch_latest_version(cache_file)
 	end
 
 	vim.defer_fn(function()

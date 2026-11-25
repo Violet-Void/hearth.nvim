@@ -40,6 +40,24 @@ describe("paths, version, api and debug", function()
 		assert.is_nil(version.get_latest_version(true))
 	end)
 
+	it("does not reuse an expired cache when a synchronous refresh fails", function()
+		local version = require("hearth.binary.version")
+		local cache = vim.fn.stdpath("cache") .. "/hearth-version"
+		vim.fn.filereadable = function(path)
+			return path == cache and 1 or 0
+		end
+		vim.fn.readfile = function(path)
+			if path == cache then
+				return { tostring(os.time() - 7200), "v0.0.1" }
+			end
+			return {}
+		end
+		vim.fn.system = function()
+			return ""
+		end
+		assert.is_nil(version.get_latest_version(true))
+	end)
+
 	it("passes resolved latest version into ensure_binary on nil update_binary", function()
 		local version = require("hearth.binary.version")
 		local download = require("hearth.binary.download")
@@ -81,5 +99,49 @@ describe("paths, version, api and debug", function()
 		local num = tonumber(msg:match("took ([%d%.]+) ms"))
 		assert.is_not_nil(num)
 		assert.is_true(num >= 4.0 and num < 50.0, "expected ~5ms, got " .. tostring(num))
+	end)
+
+	it("supports repeated setup without command collisions", function()
+		local hearth = require("hearth")
+		local ok, err = pcall(function()
+			hearth.setup({ is_enabled = false, ambience = { keymaps = false } })
+			hearth.setup({ is_enabled = false, ambience = { keymaps = false } })
+		end)
+		assert.is_true(ok, err)
+		assert.are.equal(2, vim.fn.exists(":HearthEnable"))
+		assert.are.equal(2, vim.fn.exists(":HearthAmbience"))
+	end)
+
+	it("stops ambience when SFX stop raises", function()
+		local Config = require("hearth.config")
+		local Utils = require("hearth.utils")
+		local Api = require("hearth.api")
+		local Ambience = require("hearth.ambience")
+		local orig_is_enabled, orig_group = Config.is_enabled, Config.group
+		local orig_stop, orig_amb_stop, orig_notify = Utils.stop, Ambience.stop, vim.notify
+		local ambience_stopped, notified = false, nil
+
+		Config.is_enabled = true
+		local temp_group = vim.api.nvim_create_augroup("HearthDisableSpec", { clear = true })
+		Config.group = temp_group
+		Utils.stop = function()
+			error("sfx stop failed")
+		end
+		Ambience.stop = function()
+			ambience_stopped = true
+		end
+		vim.notify = function(message)
+			notified = message
+		end
+
+		local ok = Api.disable()
+
+		Utils.stop, Ambience.stop, vim.notify = orig_stop, orig_amb_stop, orig_notify
+		Config.is_enabled, Config.group = orig_is_enabled, orig_group
+		pcall(vim.api.nvim_del_augroup_by_id, temp_group)
+
+		assert.is_false(ok)
+		assert.is_true(ambience_stopped)
+		assert.truthy(notified and notified:find("sfx stop failed", 1, true))
 	end)
 end)

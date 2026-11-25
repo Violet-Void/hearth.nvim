@@ -104,16 +104,20 @@ function M.ensure_binary(ver)
 
 	-- Download and install with proper cleanup
 	ok, err = pcall(function()
+		local timeout = config.binary.download_timeout or 60
+
 		-- Download files
-		files.download_file(urls.binary, temp_path)
+		files.download_file(urls.binary, temp_path, timeout)
 		vim.notify("Downloaded binary, fetching checksum...", vim.log.levels.DEBUG)
 
-		files.download_file(urls.checksum, checksum_path)
-		vim.notify("Verifying checksum...", vim.log.levels.DEBUG)
+		if config.binary.verify_checksum then
+			files.download_file(urls.checksum, checksum_path, timeout)
+			vim.notify("Verifying checksum...", vim.log.levels.DEBUG)
 
-		-- Verify checksum
-		files.verify_checksum(temp_path, checksum_path)
-		vim.notify("Checksum verified, installing...", vim.log.levels.DEBUG)
+			-- Verify checksum
+			files.verify_checksum(temp_path, checksum_path)
+			vim.notify("Checksum verified, installing...", vim.log.levels.DEBUG)
+		end
 
 		-- Atomic replace
 		files.rename_file(temp_path, binary_path)

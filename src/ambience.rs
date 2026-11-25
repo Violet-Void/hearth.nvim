@@ -96,7 +96,10 @@ struct OnePole {
 
 impl OnePole {
     fn new(fc: f32) -> Self {
-        OnePole { a: lp_coeff(fc), y: 0.0 }
+        OnePole {
+            a: lp_coeff(fc),
+            y: 0.0,
+        }
     }
     fn set_cutoff(&mut self, fc: f32) {
         self.a = lp_coeff(fc);
@@ -117,7 +120,12 @@ struct Bandpass {
 
 impl Bandpass {
     fn new(fc: f32, q: f32) -> Self {
-        let mut b = Bandpass { low: 0.0, band: 0.0, f: 0.0, q: 1.0 / q };
+        let mut b = Bandpass {
+            low: 0.0,
+            band: 0.0,
+            f: 0.0,
+            q: 1.0 / q,
+        };
         b.set_cutoff(fc);
         b
     }
@@ -311,7 +319,8 @@ impl Dsp for Water {
                 self.drop_phase -= 2.0 * PI;
             }
             self.drop_freq *= 1.00035; // upward chirp
-            drop = self.drop_tone.process(self.drop_phase.sin()) * self.drop_env * self.drop_amp * 1.5;
+            drop =
+                self.drop_tone.process(self.drop_phase.sin()) * self.drop_env * self.drop_amp * 1.5;
             self.drop_env *= 0.9992; // ~30 ms time constant
             if self.drop_env < 1e-4 {
                 self.drop_env = 0.0;
@@ -377,7 +386,11 @@ pub struct LayerSource {
 
 impl LayerSource {
     pub fn new(layer: Layer, seed: u64, ctl: Arc<Control>) -> Self {
-        LayerSource { dsp: make_dsp(layer, seed), ctl, gain: 0.0 }
+        LayerSource {
+            dsp: make_dsp(layer, seed),
+            ctl,
+            gain: 0.0,
+        }
     }
 }
 
@@ -390,6 +403,10 @@ impl Iterator for LayerSource {
         self.gain += (target - self.gain) * 0.0005;
         if stopping && self.gain < 1e-4 {
             return None;
+        }
+        // While muted, keep emitting silence without advancing the procedural DSP.
+        if target <= 0.0 && self.gain < 1e-4 {
+            return Some(0.0);
         }
         Some(self.dsp.next() * self.gain)
     }
@@ -532,7 +549,10 @@ mod tests {
         for l in Layer::ALL {
             // Skip the 45 ms fade-in when measuring level.
             let x = render(l, l.default_seed(), 1.0, 8.0);
-            assert!(x.iter().all(|s| s.is_finite() && s.abs() < 1.0), "{l:?} out of range");
+            assert!(
+                x.iter().all(|s| s.is_finite() && s.abs() < 1.0),
+                "{l:?} out of range"
+            );
             let level = rms(&x[SAMPLE_RATE as usize..]);
             assert!(level > 0.02 && level < 0.5, "{l:?} rms {level}");
         }
@@ -583,6 +603,30 @@ mod tests {
     }
 
     #[test]
+    fn muted_layer_emits_silence_and_resumes() {
+        let ctl = Arc::new(Control::new(1.0));
+        let mut src = LayerSource::new(Layer::Wind, 3, ctl.clone());
+        for _ in 0..SAMPLE_RATE {
+            assert!(src.next().is_some());
+        }
+
+        ctl.set_volume(0.0);
+        let muted: Vec<f32> = src.by_ref().take(SAMPLE_RATE as usize).collect();
+        assert!(
+            muted[muted.len() - 100..].iter().all(|s| *s == 0.0),
+            "muted layer still produced samples"
+        );
+
+        ctl.set_volume(1.0);
+        let resumed: Vec<f32> = src.by_ref().take(SAMPLE_RATE as usize).collect();
+        assert!(
+            rms(&resumed) > 0.005,
+            "did not resume: rms {}",
+            rms(&resumed)
+        );
+    }
+
+    #[test]
     fn volume_scales_output() {
         let loud = rms(&render(Layer::Wind, 3, 0.8, 3.0)[SAMPLE_RATE as usize..]);
         let quiet = rms(&render(Layer::Wind, 3, 0.2, 3.0)[SAMPLE_RATE as usize..]);
@@ -610,7 +654,9 @@ mod tests {
         for l in Layer::ALL {
             let ctl = Arc::new(Control::new(1.0));
             let src = LayerSource::new(l, 5, ctl);
-            assert!(src.take(SAMPLE_RATE as usize * 120).all(|s| s.is_finite() && s.abs() < 1.0));
+            assert!(src
+                .take(SAMPLE_RATE as usize * 120)
+                .all(|s| s.is_finite() && s.abs() < 1.0));
         }
     }
 }

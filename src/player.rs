@@ -144,8 +144,9 @@ impl Player {
             .lock()
             .map_err(|e| PlayError::Playback(format!("Failed to lock audio context: {}", e)))?;
 
-        if let Some((sink, _)) = context.as_ref() {
-            sink.mixer().add(source);
+        if let Some((_, sfx_player)) = context.as_ref() {
+            sfx_player.stop();
+            sfx_player.append(source);
         }
 
         Ok(())

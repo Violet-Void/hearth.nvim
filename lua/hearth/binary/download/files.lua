@@ -19,7 +19,10 @@ function M.ensure_dir(path)
 end
 
 -- Better error handling for downloads
-function M.download_file(url, output_path)
+---@param url string URL to download
+---@param output_path string Destination path
+---@param timeout? number Maximum download time in seconds
+function M.download_file(url, output_path, timeout)
 	if not url or not output_path then
 		error(errors.format_error("download_failed", "Missing URL or output path"))
 	end
@@ -30,6 +33,10 @@ function M.download_file(url, output_path)
 		"--location",
 		"--silent",
 		"--show-error",
+		"--connect-timeout",
+		"10",
+		"--max-time",
+		tostring(timeout or 60),
 		url,
 		"--output",
 		output_path,

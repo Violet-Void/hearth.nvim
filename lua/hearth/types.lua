@@ -29,8 +29,6 @@
 ---@field repeat_speed? number Sound repeat frequency in Hz
 ---@field arp_speed? number Time between arpeggio notes in seconds
 ---@field arp_mod? number Frequency multiplier for arpeggio
----@field sample_rate? integer Sample rate in Hz
----@field sample_size? integer Sample bit depth
 ---@field sound_vol? number Sound-specific volume (0.0-1.0), modulated by master_volume
 ---@field volume? number Alias for sound_vol
 
@@ -52,13 +50,6 @@
 ---@field cache_timeout? number Version cache timeout in seconds
 ---@field download_timeout? number Download timeout in seconds
 ---@field verify_checksum? boolean Verify binary checksums
----@field use_development? boolean Use development build if available
----@field github_api_token? string|nil GitHub API token for higher rate limits
----@field proxy? Hearth.ProxyConfig Proxy configuration
-
----@class Hearth.ProxyConfig
----@field url? string|nil Proxy URL
----@field from_env? boolean Use system proxy settings
 
 ---@class Hearth.VariationConfig
 ---@field enabled? boolean Enable automatic per-event variation (default: true)
@@ -72,7 +63,7 @@
 ---@field theme? string|Hearth.Theme Theme name or custom sounds table (default: "chiptune")
 ---@field theme_config? table<string, table<string, boolean>> Per-theme sound event toggles
 ---@field min_interval? number Minimum interval between sounds in seconds (default: 0.05)
----@field master_volume? number Master volume for all sounds (0.0-1.0, default: 1.0)
+---@field master_volume? number Master volume for all sounds (0.0-1.0, default: 0.5)
 ---@field binary? Hearth.BinaryConfig Binary management configuration
 ---@field variation? Hearth.VariationConfig Variation profiles and cursor pitch offsets
 ---@field ambience? Hearth.AmbienceConfig Procedural ambience options

@@ -73,8 +73,6 @@ local function sanitize_params(params)
         "repeat_speed",
         "arp_speed",
         "arp_mod",
-        "sample_rate",
-        "sample_size",
         "sound_vol",
     }
 
@@ -98,7 +96,7 @@ local function sanitize_params(params)
                 error("Invalid type for " .. key .. ": expected number, got " .. type(value))
             end
 
-            if key == "wave_type" or key == "sample_rate" or key == "sample_size" then
+            if key == "wave_type" then
                 sanitized[key] = math.floor(value)
             else
                 sanitized[key] = value

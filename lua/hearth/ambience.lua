@@ -259,10 +259,15 @@ function M.setup()
 		desc = "Hearth ambience: start|stop|toggle|volume|status",
 	}
 
-	vim.api.nvim_create_user_command("HearthAmbience", command, cmd_spec)
-	if owns_ambience_cmd or vim.fn.exists(":Ambience") == 0 then
-		vim.api.nvim_create_user_command("Ambience", command, cmd_spec)
+	if vim.fn.exists(":HearthAmbience") == 0 then
+		vim.api.nvim_create_user_command("HearthAmbience", command, cmd_spec)
+	end
+	if not owns_ambience_cmd and vim.fn.exists(":Ambience") == 0 then
 		owns_ambience_cmd = true
+	end
+	if owns_ambience_cmd then
+		pcall(vim.api.nvim_del_user_command, "Ambience")
+		vim.api.nvim_create_user_command("Ambience", command, cmd_spec)
 	end
 
 	clear_keymaps()

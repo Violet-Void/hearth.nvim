@@ -24,7 +24,8 @@ local function is_cache_valid()
 	if not version_info_cache.info or not version_info_cache.timestamp then
 		return false
 	end
-	return (os.time() - version_info_cache.timestamp) < 3600 -- 1 hour cache
+	local cache_timeout = (Config.binary and Config.binary.cache_timeout) or 3600
+	return (os.time() - version_info_cache.timestamp) < cache_timeout
 end
 
 ---Get version info with caching
@@ -133,7 +134,7 @@ function M.load_binary()
 
 	local info = get_cached_version_info()
 
-	if not info.current then
+	if not info.current or not Version.has_local_build() then
 		if not info.latest then
 			info.latest = Version.get_latest_version(true)
 		end
