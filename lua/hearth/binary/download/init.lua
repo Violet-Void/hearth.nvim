@@ -108,9 +108,9 @@ function M.ensure_binary(ver)
 
 		-- Download files
 		files.download_file(urls.binary, temp_path, timeout)
-		vim.notify("Downloaded binary, fetching checksum...", vim.log.levels.DEBUG)
 
 		if config.binary.verify_checksum then
+			vim.notify("Downloaded binary, fetching checksum...", vim.log.levels.DEBUG)
 			files.download_file(urls.checksum, checksum_path, timeout)
 			vim.notify("Verifying checksum...", vim.log.levels.DEBUG)
 

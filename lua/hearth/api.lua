@@ -130,7 +130,12 @@ function M.disable()
 	Config.is_enabled = false
 	attempt("autocmds", Utils.clear_autocmds)
 	attempt("sounds", Utils.stop)
-	attempt("ambience", require("hearth.ambience").stop)
+	local ambience_ok, ambience = pcall(require, "hearth.ambience")
+	if ambience_ok then
+		attempt("ambience", ambience.stop)
+	else
+		failures[#failures + 1] = "ambience: " .. tostring(ambience)
+	end
 
 	if #failures > 0 then
 		return handle_error(false, table.concat(failures, "\n"))

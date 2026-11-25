@@ -144,4 +144,37 @@ describe("paths, version, api and debug", function()
 		assert.is_true(ambience_stopped)
 		assert.truthy(notified and notified:find("sfx stop failed", 1, true))
 	end)
+
+	it("returns false when the ambience module cannot load during disable", function()
+		local Config = require("hearth.config")
+		local Utils = require("hearth.utils")
+		local Api = require("hearth.api")
+		local orig_is_enabled, orig_group = Config.is_enabled, Config.group
+		local orig_stop, orig_notify = Utils.stop, vim.notify
+		local orig_ambience, orig_preload = package.loaded["hearth.ambience"], package.preload["hearth.ambience"]
+		local notified = nil
+
+		Config.is_enabled = true
+		local temp_group = vim.api.nvim_create_augroup("HearthDisableRequireSpec", { clear = true })
+		Config.group = temp_group
+		Utils.stop = function() end
+		vim.notify = function(message)
+			notified = message
+		end
+		package.loaded["hearth.ambience"] = nil
+		package.preload["hearth.ambience"] = function()
+			error("ambience load failed")
+		end
+
+		local ok = Api.disable()
+
+		Utils.stop, vim.notify = orig_stop, orig_notify
+		Config.is_enabled, Config.group = orig_is_enabled, orig_group
+		package.loaded["hearth.ambience"] = orig_ambience
+		package.preload["hearth.ambience"] = orig_preload
+		pcall(vim.api.nvim_del_augroup_by_id, temp_group)
+
+		assert.is_false(ok)
+		assert.truthy(notified and notified:find("ambience load failed", 1, true))
+	end)
 end)
